@@ -1,0 +1,6 @@
+2026/05/24-01:11:47.663 4f00 Reusing MANIFEST C:\Projetos\ChatBot\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2026/05/24-01:11:47.667 4f00 Recovering log #3
+2026/05/24-01:11:47.670 4f00 Reusing old log C:\Projetos\ChatBot\.wwebjs_auth\session\Default\Local Storage\leveldb/000003.log 
+2026/05/24-01:12:00.901 1cdc Level-0 table #5: started
+2026/05/24-01:12:00.904 1cdc Level-0 table #5: 18234 bytes OK
+2026/05/24-01:12:00.909 1cdc Delete type=0 #3
