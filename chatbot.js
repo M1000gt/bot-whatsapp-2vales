@@ -112,7 +112,7 @@ client.on('ready', async () => {
         chats.forEach(chat => {
             if (chat.isGroup) {
                 console.log('-------------------------');
-                console.log('GRUPO:', chat.name);
+                console.log('GRUPO:', chat.name || 'SEM NOME');
                 console.log('ID:', chat.id._serialized);
             }
         });
