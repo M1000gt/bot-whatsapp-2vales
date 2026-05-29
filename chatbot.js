@@ -158,7 +158,7 @@ Digite apenas o número da opção desejada.`
 
         // CARDÁPIO
         if (msg === '1') {
-            const media = MessageMedia.fromFilePath(cardapio.pdf.pdf);
+            const media = MessageMedia.fromFilePath(caminhoCardapio);
 
             await enviar(message.from, media, {
                 caption: '📋 Segue o nosso cardápio oficial do 2Valles Restaurante!'
