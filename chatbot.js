@@ -12,17 +12,14 @@ console.log('🌐 Usando Chromium:', CHROME_PATH);
 // ===============================
 const client = new Client({
   authStrategy: new LocalAuth(),
-
   puppeteer: {
     headless: true,
-    executablePath: CHROME_PATH,
+    executablePath: process.env.CHROME_PATH || '/usr/bin/chromium-browser',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process'
+      '--disable-gpu'
     ]
   }
 });
