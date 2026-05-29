@@ -10,14 +10,11 @@ const {
 // CONFIGURAÇÕES
 // ========================================
 
-// ID DO GRUPO DE RESERVAS
-const grupoReservas = '120363407529784204@g.us';
-
-// CAMINHO DO PDF
+const grupoReservas = '120363413884817037@g.us';
 const caminhoCardapio = './cardapio.pdf.pdf';
 
 // ========================================
-// CLIENT
+// CLIENT (VERSÃO VPS ESTÁVEL)
 // ========================================
 
 const client = new Client({
@@ -26,7 +23,9 @@ const client = new Client({
 
     puppeteer: {
 
-        headless: false,
+        headless: true,
+
+        executablePath: '/usr/bin/chromium',
 
         args: [
             '--no-sandbox',
@@ -42,14 +41,14 @@ const client = new Client({
 });
 
 // ========================================
-// ERROS GLOBAIS
+// TRATAMENTO GLOBAL DE ERROS
 // ========================================
 
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
 // ========================================
-// DELAY
+// FUNÇÃO DELAY
 // ========================================
 
 function delay(ms) {
@@ -57,21 +56,15 @@ function delay(ms) {
 }
 
 // ========================================
-// SAUDAÇÃO AUTOMÁTICA
+// SAUDAÇÃO
 // ========================================
 
 function saudacao() {
 
     const hora = new Date().getHours();
 
-    if (hora >= 5 && hora < 12) {
-        return 'Olá, bom dia senhores! ☀️';
-    }
-
-    if (hora >= 12 && hora < 18) {
-        return 'Olá, boa tarde senhores! 🌤️';
-    }
-
+    if (hora >= 5 && hora < 12) return 'Olá, bom dia senhores! ☀️';
+    if (hora >= 12 && hora < 18) return 'Olá, boa tarde senhores! 🌤️';
     return 'Olá, boa noite senhores! 🌙';
 }
 
@@ -80,21 +73,10 @@ function saudacao() {
 // ========================================
 
 const boasVindas = [
-
-    'oi',
-    'olá',
-    'ola',
-    'menu',
-    'bom dia',
-    'boa tarde',
-    'boa noite',
-    'olá bom dia',
-    'olá boa tarde',
-    'olá boa noite',
-    'ola bom dia',
-    'ola boa tarde',
-    'ola boa noite'
-
+    'oi', 'olá', 'ola', 'menu',
+    'bom dia', 'boa tarde', 'boa noite',
+    'olá bom dia', 'olá boa tarde', 'olá boa noite',
+    'ola bom dia', 'ola boa tarde', 'ola boa noite'
 ];
 
 // ========================================
@@ -106,24 +88,16 @@ async function enviar(destino, mensagem, opcoes = {}) {
     try {
 
         if (!client.info) {
-
             console.log('⏳ Bot ainda não está pronto');
             return;
-
         }
 
-        await delay(700);
+        await delay(500);
 
-        return await client.sendMessage(
-            destino,
-            mensagem,
-            opcoes
-        );
+        return await client.sendMessage(destino, mensagem, opcoes);
 
     } catch (erro) {
-
         console.error('❌ Erro ao enviar mensagem:', erro);
-
     }
 }
 
@@ -132,13 +106,8 @@ async function enviar(destino, mensagem, opcoes = {}) {
 // ========================================
 
 client.on('qr', qr => {
-
     console.log('📲 Escaneie o QR Code abaixo:\n');
-
-    qrcode.generate(qr, {
-        small: true
-    });
-
+    qrcode.generate(qr, { small: true });
 });
 
 // ========================================
@@ -148,7 +117,7 @@ client.on('qr', qr => {
 client.on('ready', async () => {
 
     console.log('🤖 Bot conectado com sucesso!');
-    console.log('🚀 Sistema de reservas ativo!\n');
+    console.log('🚀 Sistema ativo!\n');
 
     try {
 
@@ -159,21 +128,16 @@ client.on('ready', async () => {
         chats.forEach(chat => {
 
             if (chat.isGroup) {
-
                 console.log('-------------------------');
                 console.log('GRUPO:', chat.name);
                 console.log('ID:', chat.id._serialized);
-
             }
 
         });
 
     } catch (erro) {
-
         console.error('❌ Erro ao listar grupos:', erro);
-
     }
-
 });
 
 // ========================================
@@ -184,15 +148,11 @@ client.on('message', async message => {
 
     try {
 
-        // IGNORA MENSAGENS VAZIAS
         if (!message.body) return;
 
-        // IGNORA GRUPOS
         if (message.from.includes('@g.us')) return;
 
-        const msg = message.body
-            .toLowerCase()
-            .trim();
+        const msg = message.body.toLowerCase().trim();
 
         console.log('📩 Mensagem:', msg);
 
@@ -203,22 +163,18 @@ client.on('message', async message => {
         if (boasVindas.includes(msg)) {
 
             await enviar(
-
                 message.from,
-
 `${saudacao()}
 
 🍽️ *Bem-vindo ao atendimento virtual do 2Valles Restaurante!*
 
-Escolha uma das opções abaixo:
+Escolha uma das opções:
 
 1️⃣ Cardápio
 2️⃣ Horários
 3️⃣ Reservas
 4️⃣ Localização
-5️⃣ Falar com atendente
-
-Digite apenas o número desejado.`
+5️⃣ Falar com atendente`
             );
 
             return;
@@ -232,33 +188,21 @@ Digite apenas o número desejado.`
 
             try {
 
-                const media =
-                    MessageMedia.fromFilePath(caminhoCardapio);
+                const media = MessageMedia.fromFilePath(caminhoCardapio);
 
                 await enviar(
-
                     message.from,
                     media,
-
-                    {
-                        caption:
-                            '📋 *Segue o cardápio oficial do 2Valles Restaurante!*'
-                    }
-
+                    { caption: '📋 *Cardápio oficial do 2Valles*' }
                 );
 
             } catch (erro) {
-
                 console.error('❌ Erro PDF:', erro);
 
                 await enviar(
-
                     message.from,
-
-                    '❌ Não foi possível localizar o cardápio no momento.'
-
+                    '❌ Não foi possível localizar o cardápio.'
                 );
-
             }
 
             return;
@@ -271,20 +215,12 @@ Digite apenas o número desejado.`
         if (msg === '2') {
 
             await enviar(
-
                 message.from,
+`⏰ *HORÁRIOS*
 
-`⏰ *HORÁRIOS DE FUNCIONAMENTO*
-
-Quarta e Quinta:
-12h às 22h
-
-Sexta e Sábado:
-12h às 23h
-
-Domingo:
-12h às 17h`
-
+Quarta e Quinta: 12h às 22h
+Sexta e Sábado: 12h às 23h
+Domingo: 12h às 17h`
             );
 
             return;
@@ -297,26 +233,14 @@ Domingo:
         if (msg === '3') {
 
             await enviar(
-
                 message.from,
-
-`📅 *RESERVAS 2VALLES*
-
-Copie o modelo abaixo, preencha e envie para concluirmos sua reserva:
-
-━━━━━━━━━━━━━━━
+`📅 *RESERVAS*
 
 Nome:
 Data:
 Horário:
 Quantidade de pessoas:
-Ambiente desejado:
-
-━━━━━━━━━━━━━━━
-
-🍷 Ambiente interno Bistrô
-🌿 Ambiente externo próximo ao jardim`
-
+Ambiente desejado:`
             );
 
             return;
@@ -327,49 +251,26 @@ Ambiente desejado:
         // ========================================
 
         if (
-
             msg.includes('nome') &&
-
-            (
-                msg.includes('data') ||
-                msg.includes('horário') ||
-                msg.includes('horario')
-            )
-
+            (msg.includes('data') || msg.includes('horário') || msg.includes('horario'))
         ) {
 
-            // ENVIA PARA O GRUPO
             await enviar(
-
                 grupoReservas,
+`📅 *NOVA RESERVA*
 
-`📅 *NOVA RESERVA RECEBIDA*
-
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
+👤 Cliente: ${message._data?.notifyName || 'Não informado'}
+📱 Número: ${message.from}
 
 ━━━━━━━━━━━━━━━
 
 ${message.body}`
-
             );
 
-            // CONFIRMAÇÃO CLIENTE
             await enviar(
-
                 message.from,
-
-`✅ *Reserva recebida com sucesso!*
-
-Agradecemos o contato com o *2Valles Restaurante*. 🍷
-
-Sua solicitação já foi encaminhada para nossa equipe e em breve confirmaremos sua reserva.
-
-Será um prazer receber você!`
-
+`✅ *Reserva recebida!*
+Em breve entraremos em contato. 🍷`
             );
 
             return;
@@ -382,19 +283,11 @@ Será um prazer receber você!`
         if (msg === '4') {
 
             await enviar(
-
                 message.from,
-
 `📍 *LOCALIZAÇÃO*
 
 Estrada Ministro Salgado Filho, 255
-Vale da Boa Esperança
-Petrópolis - RJ
-
-📞 24 2222-0753
-
-https://maps.app.goo.gl/LTi232DwnLwsigX79`
-
+Petrópolis - RJ`
             );
 
             return;
@@ -407,28 +300,23 @@ https://maps.app.goo.gl/LTi232DwnLwsigX79`
         if (msg === '5') {
 
             await enviar(
-
                 message.from,
-
-'👨‍💼 Um atendente falará com você em instantes.'
-
+'👨‍💼 Um atendente falará com você em breve.'
             );
 
             return;
         }
 
     } catch (erro) {
-
         console.error('❌ Erro geral:', erro);
-
     }
 
 });
 
 // ========================================
-// INICIAR BOT
+// START
 // ========================================
 
-console.log('🚀 Iniciando chatbot...\n');
+console.log('🚀 Iniciando bot...');
 
 client.initialize();
