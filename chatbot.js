@@ -14,12 +14,13 @@ const caminhoCardapio = './cardapio.pdf.pdf';
 // ========================================
 
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        clientId: 'bot2vales' // 👈 EVITA CONFLITO DE SESSÃO NO PM2
+    }),
 
     puppeteer: {
         headless: true,
-
-        executablePath: '/usr/bin/chromium-browser', // 👈 ESSENCIAL
+        executablePath: '/usr/bin/chromium-browser',
 
         args: [
             '--no-sandbox',
