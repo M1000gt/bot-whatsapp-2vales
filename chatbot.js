@@ -10,23 +10,27 @@ const grupoReservas = '120363413884817037@g.us';
 const caminhoCardapio = './cardapio.pdf.pdf';
 
 // ========================================
-// CLIENT (VERSÃO ESTÁVEL)
+// CLIENT (VPS STABLE MODE)
 // ========================================
 
 const client = new Client({
-
     authStrategy: new LocalAuth(),
 
     puppeteer: {
-
         headless: true,
 
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--no-zygote',
+            '--single-process'
         ]
+    },
+
+    webVersionCache: {
+        type: 'local'
     }
 });
 
@@ -42,19 +46,14 @@ process.on('uncaughtException', console.error);
 // ========================================
 
 function delay(ms) {
-    return new Promise(res => setTimeout(res, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ========================================
-// SAUDAÇÃO
-// ========================================
-
 function saudacao() {
-
     const hora = new Date().getHours();
 
-    if (hora >= 5 && hora < 12) return 'Olá, bom dia senhores! ☀️';
-    if (hora >= 12 && hora < 18) return 'Olá, boa tarde senhores! 🌤️';
+    if (hora < 12) return 'Olá, bom dia senhores! ☀️';
+    if (hora < 18) return 'Olá, boa tarde senhores! 🌤️';
     return 'Olá, boa noite senhores! 🌙';
 }
 
@@ -64,24 +63,22 @@ function saudacao() {
 
 const boasVindas = [
     'oi', 'olá', 'ola', 'menu',
-    'bom dia', 'boa tarde', 'boa noite'
+    'bom dia', 'boa tarde', 'boa noite',
+    'ola bom dia', 'ola boa tarde', 'ola boa noite',
+    'olá bom dia', 'olá boa tarde', 'olá boa noite'
 ];
 
 // ========================================
 // ENVIO SEGURO
 // ========================================
 
-async function enviar(destino, msg, opcoes = {}) {
+async function enviar(destino, mensagem, opcoes = {}) {
     try {
+        if (!client.info) return;
 
-        if (!client.info) {
-            console.log('⏳ Bot ainda iniciando...');
-            return;
-        }
+        await delay(600);
 
-        await delay(500);
-
-        return await client.sendMessage(destino, msg, opcoes);
+        return await client.sendMessage(destino, mensagem, opcoes);
 
     } catch (err) {
         console.error('❌ Erro envio:', err);
@@ -92,8 +89,8 @@ async function enviar(destino, msg, opcoes = {}) {
 // QR CODE
 // ========================================
 
-client.on('qr', qr => {
-    console.log('📲 Escaneie o QR Code:');
+client.on('qr', (qr) => {
+    console.log('📲 Escaneie o QR Code:\n');
     qrcode.generate(qr, { small: true });
 });
 
@@ -102,12 +99,10 @@ client.on('qr', qr => {
 // ========================================
 
 client.on('ready', async () => {
-
-    console.log('🤖 Bot conectado com sucesso!');
+    console.log('🤖 Bot conectado!');
     console.log('🚀 Sistema ativo!\n');
 
     try {
-
         const chats = await client.getChats();
 
         console.log('📋 GRUPOS ENCONTRADOS:\n');
@@ -121,7 +116,7 @@ client.on('ready', async () => {
         });
 
     } catch (err) {
-        console.error('❌ Erro ao listar grupos:', err);
+        console.error('❌ Erro grupos:', err);
     }
 });
 
@@ -130,11 +125,8 @@ client.on('ready', async () => {
 // ========================================
 
 client.on('message', async (message) => {
-
     try {
-
         if (!message.body) return;
-
         if (message.from.includes('@g.us')) return;
 
         const msg = message.body.toLowerCase().trim();
@@ -143,133 +135,97 @@ client.on('message', async (message) => {
 
         // MENU
         if (boasVindas.includes(msg)) {
+            await enviar(message.from, `
+${saudacao()}
 
-            await enviar(
-                message.from,
-`${saudacao()}
-
-🍽️ *2Valles Restaurante*
+🍽️ *Bem-vindo ao atendimento virtual!*
 
 1️⃣ Cardápio
 2️⃣ Horários
 3️⃣ Reservas
 4️⃣ Localização
-5️⃣ Atendente`
-            );
-
+5️⃣ Atendente
+`);
             return;
         }
 
         // CARDÁPIO
         if (msg === '1') {
+            const media = MessageMedia.fromFilePath(caminhoCardapio);
 
-            try {
-
-                const media = MessageMedia.fromFilePath(caminhoCardapio);
-
-                await enviar(
-                    message.from,
-                    media,
-                    { caption: '📋 Cardápio 2Valles' }
-                );
-
-            } catch (err) {
-                console.error(err);
-
-                await enviar(
-                    message.from,
-                    '❌ Não foi possível enviar o cardápio.'
-                );
-            }
+            await enviar(message.from, media, {
+                caption: '📋 Cardápio oficial'
+            });
 
             return;
         }
 
         // HORÁRIOS
         if (msg === '2') {
+            await enviar(message.from, `
+⏰ *Horários*
 
-            await enviar(
-                message.from,
-`⏰ HORÁRIOS
-
-Quarta e Quinta: 12h às 22h
-Sexta e Sábado: 12h às 23h
-Domingo: 12h às 17h`
-            );
-
+Qua/Qui: 12h–22h
+Sex/Sáb: 12h–23h
+Dom: 12h–17h
+`);
             return;
         }
 
         // RESERVAS
         if (msg === '3') {
-
-            await enviar(
-                message.from,
-`📅 RESERVAS
+            await enviar(message.from, `
+📅 *Reservas*
 
 Nome:
 Data:
 Horário:
 Pessoas:
-Ambiente:`
-            );
-
+Ambiente:
+`);
             return;
         }
 
         // CAPTURA RESERVA
-        if (
-            msg.includes('nome') &&
-            (msg.includes('data') || msg.includes('horário') || msg.includes('horario'))
-        ) {
+        if (msg.includes('nome') && (msg.includes('data') || msg.includes('horario') || msg.includes('horário'))) {
 
-            await enviar(
-                grupoReservas,
-`📅 NOVA RESERVA
+            await enviar(grupoReservas, `
+📅 *NOVA RESERVA*
 
-Cliente: ${message._data?.notifyName || 'Não informado'}
-Número: ${message.from}
+👤 ${message._data?.notifyName || 'N/A'}
+📱 ${message.from}
 
-${message.body}`
-            );
+${message.body}
+`);
 
-            await enviar(
-                message.from,
-'✅ Reserva recebida! Em breve entraremos em contato.'
-            );
+            await enviar(message.from, `
+✅ Reserva recebida!
+Em breve confirmaremos.
+`);
 
             return;
         }
 
         // LOCALIZAÇÃO
         if (msg === '4') {
+            await enviar(message.from, `
+📍 Localização
 
-            await enviar(
-                message.from,
-`📍 LOCALIZAÇÃO
-
-Estrada Ministro Salgado Filho, 255
-Petrópolis - RJ`
-            );
-
+Petrópolis - RJ
+https://maps.google.com
+`);
             return;
         }
 
         // ATENDENTE
         if (msg === '5') {
-
-            await enviar(
-                message.from,
-'👨‍💼 Um atendente falará com você em breve.'
-            );
-
+            await enviar(message.from, '👨‍💼 Um atendente vai te chamar.');
             return;
         }
 
     } catch (err) {
         console.error('❌ Erro geral:', err);
     }
-
 });
 
 // ========================================
@@ -277,4 +233,5 @@ Petrópolis - RJ`
 // ========================================
 
 console.log('🚀 Iniciando bot...');
+
 client.initialize();
