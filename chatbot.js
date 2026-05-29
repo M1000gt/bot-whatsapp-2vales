@@ -2,7 +2,6 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 
 // 🔥 Detecta Chromium automaticamente (mais seguro)
 const CHROME_PATH =
-  '/usr/bin/chromium' ||
   '/usr/bin/chromium-browser';
 
 console.log('🚀 Iniciando bot...');
