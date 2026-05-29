@@ -141,23 +141,27 @@ client.on('message', async (message) => {
             await enviar(message.from, `
 ${saudacao()}
 
-🍽️ *Bem-vindo ao atendimento virtual!*
+🍽️ Seja muito bem-vindo ao atendimento virtual do 2Valles Restaurante!
+
+Escolha uma das opções abaixo:
 
 1️⃣ Cardápio
 2️⃣ Horários
 3️⃣ Reservas
 4️⃣ Localização
-5️⃣ Atendente
-`);
+5️⃣ Falar com atendente
+
+Digite apenas o número da opção desejada.`
+        );
             return;
         }
 
         // CARDÁPIO
         if (msg === '1') {
-            const media = MessageMedia.fromFilePath(caminhoCardapio);
+            const media = MessageMedia.fromFilePath(cardapio.pdf.pdf);
 
             await enviar(message.from, media, {
-                caption: '📋 Cardápio oficial'
+                caption: '📋 Segue o nosso cardápio oficial do 2Valles Restaurante!'
             });
 
             return;
@@ -165,64 +169,127 @@ ${saudacao()}
 
         // HORÁRIOS
         if (msg === '2') {
-            await enviar(message.from, `
-⏰ *Horários*
+            await enviar(message.from, 
+`⏰ HORÁRIOS DE FUNCIONAMENTO
 
-Qua/Qui: 12h–22h
-Sex/Sáb: 12h–23h
-Dom: 12h–17h
-`);
+Quarta e Quinta:
+12h às 22h
+
+Sexta e Sábado:
+12h às 23h
+
+Domingo:
+12h às 17h`
+        );
             return;
         }
 
-        // RESERVAS
-        if (msg === '3') {
-            await enviar(message.from, `
-📅 *Reservas*
+// RESERVAS
+// ========================================
+
+if (msg === '3') {
+
+    await enviar(
+        message.from,
+
+`📅 RESERVAS 2VALLES
+
+Copie o modelo abaixo, preencha e envie para concluirmos sua reserva:
+
+━━━━━━━━━━━━━━━
 
 Nome:
 Data:
 Horário:
-Pessoas:
-Ambiente:
-`);
-            return;
-        }
+Quantidade de pessoas:
+Ambiente desejado:
 
-        // CAPTURA RESERVA
-        if (msg.includes('nome') && (msg.includes('data') || msg.includes('horario') || msg.includes('horário'))) {
+━━━━━━━━━━━━━━━
 
-            await enviar(grupoReservas, `
-📅 *NOVA RESERVA*
+🍷 Ambiente interno Bistrô
+🌿 Ambiente externo próximo ao jardim`
+    );
 
-👤 ${message._data?.notifyName || 'N/A'}
-📱 ${message.from}
+    return;
+}
 
-${message.body}
-`);
+// ========================================
+// CAPTURA RESERVA
+// ========================================
 
-            await enviar(message.from, `
-✅ Reserva recebida!
-Em breve confirmaremos.
-`);
+if (
 
-            return;
-        }
+    msg.includes('nome') &&
+    (
+        msg.includes('data') ||
+        msg.includes('horário') ||
+        msg.includes('horario')
+    )
 
-        // LOCALIZAÇÃO
+) {
+
+    // ENVIA PARA O GRUPO
+    await enviar(
+
+        grupoReservas,
+
+`📅 NOVA RESERVA RECEBIDA
+
+👤 Cliente:
+${message._data?.notifyName || 'Não informado'}
+
+📱 Número:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+${message.body}`
+    );
+
+    // CONFIRMAÇÃO CLIENTE
+    await enviar(
+
+        message.from,
+
+`✅ Reserva recebida com sucesso!
+
+Agradecemos o contato com o 2Valles Restaurante. 🍷
+
+Sua solicitação já foi encaminhada para nossa equipe e em breve confirmaremos sua reserva.
+
+Será um prazer receber você!`
+    );
+
+    return;
+}
+
+      // LOCALIZAÇÃO
+        // ========================================
+
         if (msg === '4') {
-            await enviar(message.from, `
-📍 Localização
 
+            await enviar(
+
+                message.from,
+
+`📍 LOCALIZAÇÃO
+
+Estrada Ministro Salgado Filho, 255
+Vale da Boa Esperança
 Petrópolis - RJ
-https://maps.google.com
-`);
+
+📞 24 2222-0753
+
+https://maps.app.goo.gl/LTi232DwnLwsigX79`
+
+            );
+
             return;
         }
 
         // ATENDENTE
         if (msg === '5') {
-            await enviar(message.from, '👨‍💼 Um atendente vai te chamar.');
+            await enviar(message.from, '👨‍💼 Um atendente ja virá atendelo.');
             return;
         }
 
