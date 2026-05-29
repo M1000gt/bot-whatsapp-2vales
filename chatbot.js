@@ -19,7 +19,7 @@ const client = new Client({
     puppeteer: {
         headless: true,
 
-        executablePath: '/usr/bin/google-chrome', // 👈 ESSENCIAL
+        executablePath: '/usr/bin/chromium-browser', // 👈 ESSENCIAL
 
         args: [
             '--no-sandbox',
