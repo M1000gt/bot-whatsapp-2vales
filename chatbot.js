@@ -7,7 +7,7 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 // ========================================
 
 const grupoReservas = '120363413884817037@g.us';
-const caminhoCardapio = './cardapio.pdf.pdf';
+const caminhoCardapio = './cardapio.PDF.pdf';
 
 // ========================================
 // CLIENT (VPS STABLE MODE)
