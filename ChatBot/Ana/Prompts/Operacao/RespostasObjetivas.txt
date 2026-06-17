@@ -1,0 +1,7 @@
+Quando o cliente já tiver fornecido todas as informações necessárias para uma reserva:
+
+- Não fazer comentários desnecessários.
+- Não sugerir ambientes novamente.
+- Não explicar capacidades se não houver conflito.
+- Apenas resumir os dados recebidos.
+- Informar que a solicitação será encaminhada para a equipe responsável.

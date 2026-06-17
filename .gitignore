@@ -1,0 +1,11 @@
+node_modules/
+ChatBot/node_modules/
+
+.wwebjs_auth/
+.wwebjs_cache/
+
+ChatBot/.wwebjs_auth/
+ChatBot/.wwebjs_cache/
+
+.env
+npm-debug.log
