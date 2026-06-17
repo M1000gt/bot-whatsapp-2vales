@@ -37,9 +37,9 @@ const client = new Client({
     }),
 
     puppeteer: {
-        headless: false,
-        //executablePath: '/usr/bin/chromium-browser',
-        executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',
+        headless: true,
+        executablePath: '/usr/bin/chromium-browser',
+        //executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',
 
  
 
