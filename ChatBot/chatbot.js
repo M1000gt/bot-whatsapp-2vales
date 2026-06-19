@@ -39,7 +39,7 @@ const client = new Client({
     puppeteer: {
         headless: true,
         executablePath: '/usr/bin/chromium-browser',
-        //executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',
+        
 
  
 
@@ -53,9 +53,7 @@ const client = new Client({
         ]
     },
 
-   // webVersionCache: {
-        //type: 'local'
-    //}
+
 });
 
 require('./qrcode-safe')(client);
@@ -265,7 +263,7 @@ client.on('message', async (message) => {
                 message.from,
                 media,
                 {
-                    caption: '📋 Segue o nosso cardápio oficial do 2Valles Restaurante!'
+                    caption: '📋 Segue o nosso cardápio oficial do 2Vales Restaurante!'
                 }
             );
         }
