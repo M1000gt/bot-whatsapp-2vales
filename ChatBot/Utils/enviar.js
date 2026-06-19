@@ -13,7 +13,7 @@ async function enviar(
         if (!client.info)
             return;
 
-        await delay(600);
+        await delay(150);
 
         return await client.sendMessage(
             destino,

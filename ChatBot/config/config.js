@@ -4,6 +4,6 @@ module.exports = {
         '120363407529784204@g.us',
 
     caminhoCardapio:
-        './Arquivos/Cardapio.pdf'
+        './Arquivos/Cardapio-leve.pdf'
 
 };

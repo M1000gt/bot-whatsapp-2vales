@@ -233,6 +233,73 @@ A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsáv
 }
 
 
+
+// ========================================
+// SIMULAR DIGITAÇÃO
+// ========================================
+
+async function iniciarDigitando(message) {
+    let chat = null;
+    let intervalo = null;
+    let timeout = null;
+    let parado = false;
+
+    try {
+        chat = await message.getChat();
+
+        await chat.sendStateTyping();
+
+        intervalo = setInterval(async () => {
+            try {
+                if (!parado && chat) {
+                    await chat.sendStateTyping();
+                }
+            } catch {}
+        }, 7000);
+
+        timeout = setTimeout(async () => {
+            await pararDigitando();
+        }, 60000);
+
+        async function pararDigitando() {
+            if (parado) return;
+
+            parado = true;
+
+            if (intervalo) clearInterval(intervalo);
+            if (timeout) clearTimeout(timeout);
+
+            try {
+                if (chat) {
+                    await chat.clearState();
+                }
+            } catch {}
+        }
+
+        return pararDigitando;
+    } catch {
+        return async () => {};
+    }
+}
+
+
+
+// ========================================
+// CACHE DO CARDÁPIO
+// ========================================
+
+let mediaCardapioCache = null;
+
+function getMediaCardapio() {
+    if (!mediaCardapioCache) {
+        mediaCardapioCache = MessageMedia.fromFilePath(caminhoCardapio);
+        console.log('📄 Cardápio carregado em cache.');
+    }
+
+    return mediaCardapioCache;
+}
+
+
 client.on('message', async (message) => {
         if (message.fromMe) return;
         if (!message.from) return;
@@ -268,6 +335,8 @@ client.on('message', async (message) => {
         // ========================================
         // ANA COMO CÉREBRO PRINCIPAL
         // ========================================
+
+        const pararDigitando = await iniciarDigitando(message);
 
         let respostaAna = await falarComAna(
             message.from,
@@ -318,12 +387,14 @@ client.on('message', async (message) => {
             );
         }
 
+        await pararDigitando();
+
         // ========================================
         // ENVIA CARDÁPIO SE A ANA PEDIR
         // ========================================
 
         if (deveEnviarCardapio) {
-            const media = MessageMedia.fromFilePath(caminhoCardapio);
+            const media = getMediaCardapio();
 
             await enviar(
                 client,
