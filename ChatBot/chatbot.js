@@ -172,6 +172,67 @@ Mensagem: ${textoSeguro}
 }
 
 
+
+// ========================================
+// FILTRO ADMINISTRATIVO / FORNECEDORES
+// ========================================
+
+function pareceMensagemAdministrativa(texto = '') {
+    const t = String(texto).toLowerCase();
+
+    const padroes = [
+        /promo[cç][aã]o\s+de\s+(carne|carnes|bebida|bebidas|heineken|cerveja|vinho|frango|peixe|pescado)/i,
+        /(carne|bebida|heineken|cerveja|vinho|frango|peixe|pescado).*(promo[cç][aã]o|semana|entrega|fornecedor|or[cç]amento)/i,
+        /fornecedor/i,
+        /contador|contabilidade|fiscal|imposto/i,
+        /nota\s*fiscal|nf-e|nfe|danfe|xml/i,
+        /boleto|cobran[cç]a|pagamento|pix/i,
+        /certificado|\.pfx|senha/i,
+        /mercadoria|produto\s+para\s+venda|or[cç]amento/i,
+        /entrego|entrega|entregar|retirada/i,
+        /vamos\s+precisar/i,
+        /precisam\s+de\s+mais\s+alguma\s+coisa/i,
+        /as\s+notinhas/i,
+        /total\s+r?\$?\s*\d+/i,
+        /segue\s+(arquivo|nota|boleto|certificado|xml|danfe)/i
+    ];
+
+    return padroes.some(regex => regex.test(t));
+}
+
+async function notificarAdministrativo(message, texto) {
+    try {
+        let nome = 'Sem nome';
+
+        try {
+            const contato = await message.getContact();
+            nome = contato.pushname || contato.name || contato.shortName || 'Sem nome';
+        } catch {}
+
+        const aviso = `📌 MENSAGEM ADMINISTRATIVA / FORNECEDOR
+
+👤 Nome:
+${nome}
+
+📱 Contato/ID:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+Mensagem recebida:
+${texto}
+
+━━━━━━━━━━━━━━━
+
+A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsável.`;
+
+        await client.sendMessage(grupoReservas, aviso);
+    } catch (error) {
+        console.error('Erro ao notificar administrativo:', error.message);
+    }
+}
+
+
 client.on('message', async (message) => {
         if (message.fromMe) return;
         if (!message.from) return;
@@ -197,6 +258,12 @@ client.on('message', async (message) => {
         const msg = message.body.toLowerCase().trim();
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
+
+        if (pareceMensagemAdministrativa(msg)) {
+            await registrarConversaLimpa(message, 'ADMIN/FORNECEDOR BLOQUEADO', msg);
+            await notificarAdministrativo(message, msg);
+            return;
+        }
 
         // ========================================
         // ANA COMO CÉREBRO PRINCIPAL
