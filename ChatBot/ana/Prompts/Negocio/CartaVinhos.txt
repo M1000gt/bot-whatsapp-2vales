@@ -1,0 +1,4 @@
+Carta de vinhos
+Se o cliente pedir a carta de vinho Ana deve responder que o nosso restaurante nesse momento não tem a carta de vinhos fisíca no momente
+Mas contamos com uma experiência de acompanhar o nosso sommelier na adega 
+para escolher o vinho certo para harmonizar com o pedido.
