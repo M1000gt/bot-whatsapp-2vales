@@ -58,6 +58,8 @@ const client = new Client({
     //}
 });
 
+require('./qrcode-safe')(client);
+
 // ========================================
 // ERROS GLOBAIS
 // ========================================
@@ -127,10 +129,60 @@ client.on('ready', async () => {
 // MENSAGENS
 // ========================================
 
-client.on('message', async (message) => {
+
+// ========================================
+// LOG LIMPO DE CONVERSAS
+// ========================================
+
+const fsLog = require('fs');
+const pathLog = require('path');
+
+const conversaLogPath = pathLog.join(__dirname, 'logs', 'conversas.log');
+
+function mascararTextoSensivel(texto = '') {
+    return String(texto)
+        .replace(/senha\s*[:=]\s*\S+/gi, 'senha: [OCULTA]')
+        .replace(/[\w.-]+\.pfx/gi, '[ARQUIVO PFX OCULTO]')
+        .replace(/\b\d{14}\b/g, '[CNPJ/CPF OCULTO]');
+}
+
+async function registrarConversaLimpa(message, origem, texto) {
     try {
-         console.log('🔎 RECEBI ALGO DE:', message.from, '| fromMe:', message.fromMe);
-        if (!message.body) return;
+        fsLog.mkdirSync(pathLog.dirname(conversaLogPath), { recursive: true });
+
+        let nome = 'Sem nome';
+
+        try {
+            const contato = await message.getContact();
+            nome = contato.pushname || contato.name || contato.shortName || 'Sem nome';
+        } catch {}
+
+        const id = message.from || 'sem-id';
+        const textoSeguro = mascararTextoSensivel(texto);
+
+        const linha = `
+[${new Date().toLocaleString('pt-BR')}] ${origem}
+Nome: ${nome}
+Contato/ID: ${id}
+Mensagem: ${textoSeguro}
+`;
+
+        fsLog.appendFileSync(conversaLogPath, linha, 'utf8');
+    } catch (error) {
+        console.error('Erro ao registrar conversa limpa:', error.message);
+    }
+}
+
+
+client.on('message', async (message) => {
+        if (message.fromMe) return;
+        if (!message.from) return;
+        if (message.from === 'status@broadcast') return;
+        if (message.from.endsWith('@newsletter')) return;
+        if (message.from.endsWith('@g.us')) return;
+        if (!message.body || !message.body.trim()) return;
+    try {
+         if (!message.body) return;
 
         // Ignora mensagens enviadas pelo próprio bot
         if (message.fromMe) return;
@@ -146,7 +198,7 @@ client.on('message', async (message) => {
 
         const msg = message.body.toLowerCase().trim();
 
-        console.log('📩 Mensagem:', msg);
+        await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
 
         // ========================================
         // ANA COMO CÉREBRO PRINCIPAL
@@ -193,6 +245,7 @@ client.on('message', async (message) => {
         // ========================================
 
         if (respostaAna) {
+            await registrarConversaLimpa(message, 'ANA', respostaAna);
             await enviar(
                 client,
                 message.from,

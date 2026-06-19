@@ -9,3 +9,32 @@ ChatBot/.wwebjs_cache/
 
 .env
 npm-debug.log
+# Segredos / variáveis
+.env
+.env-*
+*.env
+ChatBot/.env-openai
+dashboard/.env-dashboard
+
+# Sessões WhatsApp
+.wwebjs_auth/
+.wwebjs_cache/
+ChatBot/.wwebjs_auth/
+ChatBot/.wwebjs_cache/
+
+# Logs e runtime
+logs/
+ChatBot/logs/
+*.log
+ChatBot/qrcode-status.json
+ChatBot/qrcode.png
+
+# Backups locais
+*backup*
+*-backup*
+ChatBot/chatbot-backup*.js
+dashboard/*backup*.js
+dashboard/*backup*.json
+
+# Arquivo solto criado por engano na raiz
+/server.js
