@@ -1,5 +1,5 @@
 module.exports = `
-📅 RESERVAS 2VALLES
+📅 RESERVAS 2VALES
 
 Copie o modelo abaixo:
 

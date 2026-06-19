@@ -18,7 +18,7 @@ async function extrairCardapio() {
         fs.writeFileSync(
             caminhoSaida,
             `
-CARDÁPIO OFICIAL DO 2VALLES RESTAURANTE
+CARDÁPIO OFICIAL DO 2VALES RESTAURANTE
 
 Use apenas as informações abaixo.
 Não invente pratos, sobremesas, bebidas ou valores.

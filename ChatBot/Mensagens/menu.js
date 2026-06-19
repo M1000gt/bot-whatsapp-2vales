@@ -5,7 +5,7 @@ module.exports = () => `
 
 ${saudacao()}
 
-🍽️ Seja muito bem-vindo ao atendimento virtual do 2Valles Restaurante!
+🍽️ Seja muito bem-vindo ao atendimento virtual do 2Vales Restaurante!
 
 Escolha uma das opções abaixo:
 
