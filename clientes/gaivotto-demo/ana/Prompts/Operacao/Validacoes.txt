@@ -1,0 +1,22 @@
+PETS
+
+ Pets são permitidos apenas no ambiente externo.
+ Caso o cliente mencione cachorro, cão, pet ou animal:
+   O ambiente deve ser considerado externo.
+   Não oferecer ambiente interno.
+   Não oferecer Sala VIP.
+
+DIAS FECHADOS
+
+ Segunda-feira: fechado.
+ Terça-feira: fechado.
+
+HORÁRIOS
+
+ Quarta e quinta: reservas até 21h.
+ Sexta e sábado: reservas até 22h.
+ Domingo: reservas até 16h.
+
+SALA VIP
+
+ Máximo de 14 pessoas.

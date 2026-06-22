@@ -1061,6 +1061,177 @@ app.get('/qrcode-image/:pm2', (req, res) => {
     res.sendFile(bot.qrImage);
 });
 
+
+
+app.get('/clientes', async (req, res) => {
+    const clientes = carregarClientes();
+
+    let cards = '';
+
+    for (const bot of clientes) {
+        const data = await getBotStatus(bot.pm2);
+
+        cards += `
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>${escapeHtml(bot.nome)}</h2>
+                        <small>${escapeHtml(bot.subtitulo || '')}</small>
+                    </div>
+                    <span class="status-pill ${data.status === 'online' ? 'online' : 'warning'}">${escapeHtml(data.status)}</span>
+                </div>
+
+                <div class="info">
+                    <div class="info-item">
+                        <span>PM2</span>
+                        <strong><code>${escapeHtml(bot.pm2)}</code></strong>
+                    </div>
+                    <div class="info-item">
+                        <span>Tipo</span>
+                        <strong>${escapeHtml(bot.tipo || '-')}</strong>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <a class="button-link secondary" href="/qrcode/${encodeURIComponent(bot.pm2)}">QR Code</a>
+                    <a class="button-link secondary" href="/logs/${encodeURIComponent(bot.pm2)}">Logs</a>
+                    <a class="button-link secondary" href="/conversas/${encodeURIComponent(bot.pm2)}">Conversas</a>
+                </div>
+            </div>
+        `;
+    }
+
+    const content = `
+        <section class="grid">
+            ${cards}
+        </section>
+    `;
+
+    res.send(layout(content, 'clientes'));
+});
+
+app.get('/qr', async (req, res) => {
+    const clientes = carregarClientes();
+
+    let cards = '';
+
+    for (const bot of clientes) {
+        cards += `
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>${escapeHtml(bot.nome)}</h2>
+                        <small>QR Code • <code>${escapeHtml(bot.pm2)}</code></small>
+                    </div>
+                </div>
+
+                <p style="color:#94a3b8;">
+                    Abra a tela de QR Code deste cliente para conectar ou verificar a sessão do WhatsApp.
+                </p>
+
+                <div class="actions">
+                    <a class="button-link primary" href="/qrcode/${encodeURIComponent(bot.pm2)}">Abrir QR Code</a>
+                </div>
+            </div>
+        `;
+    }
+
+    const content = `
+        <section class="grid">
+            ${cards}
+        </section>
+    `;
+
+    res.send(layout(content, 'qr'));
+});
+
+app.get('/logs', async (req, res) => {
+    const clientes = carregarClientes();
+
+    let cards = '';
+
+    for (const bot of clientes) {
+        cards += `
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>${escapeHtml(bot.nome)}</h2>
+                        <small>Logs técnicos • <code>${escapeHtml(bot.pm2)}</code></small>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <a class="button-link secondary" href="/logs/${encodeURIComponent(bot.pm2)}">Ver logs técnicos</a>
+                    <a class="button-link secondary" href="/conversas/${encodeURIComponent(bot.pm2)}">Ver conversas</a>
+                </div>
+            </div>
+        `;
+    }
+
+    const content = `
+        <section class="grid">
+            ${cards}
+        </section>
+    `;
+
+    res.send(layout(content, 'logs'));
+});
+
+app.get('/status', async (req, res) => {
+    const clientes = carregarClientes();
+
+    let itens = '';
+
+    for (const bot of clientes) {
+        const data = await getBotStatus(bot.pm2);
+
+        itens += `
+            <div class="info-item">
+                <span>${escapeHtml(bot.nome)}</span>
+                <strong>${escapeHtml(data.status)} • ${escapeHtml(data.uptime)}</strong>
+            </div>
+        `;
+    }
+
+    const content = `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Status geral</h2>
+                    <small>Resumo rápido dos bots cadastrados.</small>
+                </div>
+                <a class="button-link secondary" href="/">Voltar</a>
+            </div>
+
+            <div class="info">
+                ${itens}
+            </div>
+        </div>
+    `;
+
+    res.send(layout(content, 'status'));
+});
+
+app.get('/config', (req, res) => {
+    const content = `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Configurações</h2>
+                    <small>Área reservada para ajustes futuros do painel.</small>
+                </div>
+                <a class="button-link secondary" href="/">Voltar</a>
+            </div>
+
+            <p style="color:#94a3b8;">
+                Essa página ainda está em construção. Por enquanto, as configurações principais ficam no arquivo <code>clientes.json</code> e nos arquivos de controle de cada bot.
+            </p>
+        </div>
+    `;
+
+    res.send(layout(content, 'config'));
+});
+
 app.listen(PORT, () => {
     console.log(`✅ Dashboard M1000gt Control rodando na porta ${PORT}`);
 });
