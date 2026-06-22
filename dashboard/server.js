@@ -106,6 +106,39 @@ function encontrarCliente(pm2Name) {
     return clientes.find(item => item.pm2 === pm2Name);
 }
 
+function carregarControle(bot) {
+    if (!bot.controlFile) {
+        return { autoReply: true };
+    }
+
+    try {
+        if (!fs.existsSync(bot.controlFile)) {
+            fs.writeFileSync(bot.controlFile, JSON.stringify({ autoReply: true }, null, 2));
+            return { autoReply: true };
+        }
+
+        const raw = fs.readFileSync(bot.controlFile, 'utf8');
+        return JSON.parse(raw);
+    } catch (error) {
+        console.error('Erro ao carregar controle:', error.message);
+        return { autoReply: true };
+    }
+}
+
+function salvarControle(bot, controle) {
+    if (!bot.controlFile) {
+        return;
+    }
+
+    try {
+        const dir = path.dirname(bot.controlFile);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(bot.controlFile, JSON.stringify(controle, null, 2));
+    } catch (error) {
+        console.error('Erro ao salvar controle:', error.message);
+    }
+}
+
 function layout(content, currentPage = 'dashboard') {
     const active = (page) => currentPage === page ? 'active' : '';
 
@@ -723,6 +756,13 @@ app.get('/', async (req, res) => {
 
     for (const bot of clientes) {
         const data = await getBotStatus(bot.pm2);
+        const controle = carregarControle(bot);
+        const autoReply = controle.autoReply !== false;
+        const autoReplyLabel = autoReply ? 'Ativo' : 'Pausado';
+        const autoReplyClass = autoReply ? 'online' : 'warning';
+        const autoReplyButton = autoReply ? 'Pausar respostas' : 'Reativar respostas';
+        const autoReplyButtonClass = autoReply ? 'ghost' : 'primary';
+
         const isOnline = data.status === 'online';
 
         if (isOnline) onlineCount++;
@@ -757,6 +797,11 @@ app.get('/', async (req, res) => {
                     </div>
 
                     <div class="info-item">
+                        <span>Atendimento automático</span>
+                        <strong><span class="status-pill ${autoReplyClass}">${autoReplyLabel}</span></strong>
+                    </div>
+
+                    <div class="info-item">
                         <span>Uptime</span>
                         <strong>${escapeHtml(data.uptime)}</strong>
                     </div>
@@ -782,7 +827,13 @@ app.get('/', async (req, res) => {
                         <button class="primary" type="submit">Reiniciar bot</button>
                     </form>
 
-                    <a class="button-link secondary" href="/logs/${encodeURIComponent(bot.pm2)}">Ver logs técnicos</a>\n\n                    <a class="button-link secondary" href="/conversas/${encodeURIComponent(bot.pm2)}">Ver conversas</a>
+                    <form method="POST" action="/toggle-auto-reply/${encodeURIComponent(bot.pm2)}" onsubmit="return confirm('Alterar atendimento automático deste bot?');">
+                        <button class="${autoReplyButtonClass}" type="submit">${autoReplyButton}</button>
+                    </form>
+
+                    <a class="button-link secondary" href="/logs/${encodeURIComponent(bot.pm2)}">Ver logs técnicos</a>
+
+                    <a class="button-link secondary" href="/conversas/${encodeURIComponent(bot.pm2)}">Ver conversas</a>
 
                     <a class="button-link danger" href="/qrcode/${encodeURIComponent(bot.pm2)}">Ver QR Code</a>
                 </div>
@@ -833,6 +884,24 @@ app.post('/restart/:pm2', async (req, res) => {
     }
 
     await run(`pm2 restart ${bot.pm2}`);
+    res.redirect('/');
+});
+
+app.post('/toggle-auto-reply/:pm2', (req, res) => {
+    const bot = encontrarCliente(req.params.pm2);
+
+    if (!bot) {
+        return res.status(404).send('Bot não encontrado.');
+    }
+
+    const controle = carregarControle(bot);
+    const autoReplyAtual = controle.autoReply !== false;
+
+    controle.autoReply = !autoReplyAtual;
+    controle.updatedAt = new Date().toISOString();
+
+    salvarControle(bot, controle);
+
     res.redirect('/');
 });
 
