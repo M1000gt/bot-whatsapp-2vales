@@ -106,7 +106,9 @@ function encontrarCliente(pm2Name) {
     return clientes.find(item => item.pm2 === pm2Name);
 }
 
-function layout(content) {
+function layout(content, currentPage = 'dashboard') {
+    const active = (page) => currentPage === page ? 'active' : '';
+
     return `
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -114,44 +116,190 @@ function layout(content) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>M1000gt Control</title>
+
             <style>
-                * { box-sizing: border-box; }
+                :root {
+                    --bg-main: #080f1f;
+                    --bg-panel: rgba(15, 23, 42, 0.82);
+                    --bg-card: rgba(30, 41, 59, 0.78);
+                    --bg-soft: rgba(15, 23, 42, 0.58);
+
+                    --border: rgba(148, 163, 184, 0.14);
+                    --border-strong: rgba(148, 163, 184, 0.24);
+
+                    --text-main: #f8fafc;
+                    --text-muted: #94a3b8;
+                    --text-soft: #cbd5e1;
+
+                    --blue: #2563eb;
+                    --blue-light: #60a5fa;
+                    --green: #22c55e;
+                    --red: #ef4444;
+                    --yellow: #f59e0b;
+
+                    --radius-lg: 24px;
+                    --radius-md: 16px;
+                    --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+                }
+
+                * {
+                    box-sizing: border-box;
+                }
+
+                html {
+                    scroll-behavior: smooth;
+                }
 
                 body {
                     margin: 0;
                     min-height: 100vh;
-                    font-family: Arial, Helvetica, sans-serif;
+                    font-family: Inter, Arial, Helvetica, sans-serif;
+                    color: var(--text-main);
                     background:
-                        radial-gradient(circle at top left, rgba(37, 99, 235, 0.28), transparent 30%),
-                        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.18), transparent 30%),
-                        #0f172a;
-                    color: #f8fafc;
+                        radial-gradient(circle at top left, rgba(37, 99, 235, 0.32), transparent 32%),
+                        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.14), transparent 34%),
+                        linear-gradient(135deg, #020617 0%, var(--bg-main) 52%, #0f172a 100%);
                 }
 
-                .page {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 34px 22px;
+                a {
+                    color: inherit;
+                }
+
+                .app-shell {
+                    display: grid;
+                    grid-template-columns: 260px 1fr;
+                    min-height: 100vh;
+                }
+
+                .sidebar {
+                    position: sticky;
+                    top: 0;
+                    height: 100vh;
+                    padding: 24px 18px;
+                    border-right: 1px solid var(--border);
+                    background: rgba(2, 6, 23, 0.62);
+                    backdrop-filter: blur(18px);
+                }
+
+                .logo {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 34px;
+                    padding: 8px;
+                }
+
+                .logo-mark {
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 14px;
+                    display: grid;
+                    place-items: center;
+                    background: linear-gradient(135deg, var(--blue), #1e40af);
+                    box-shadow: 0 0 34px rgba(37, 99, 235, 0.45);
+                    font-weight: 900;
+                    letter-spacing: -1px;
+                }
+
+                .logo-text strong {
+                    display: block;
+                    font-size: 16px;
+                    letter-spacing: -0.3px;
+                }
+
+                .logo-text span {
+                    display: block;
+                    margin-top: 3px;
+                    color: var(--text-muted);
+                    font-size: 12px;
+                }
+
+                .nav-label {
+                    margin: 20px 10px 10px;
+                    color: #64748b;
+                    font-size: 11px;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0.9px;
+                }
+
+                .nav {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 7px;
+                }
+
+                .nav a {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 12px 13px;
+                    border-radius: 14px;
+                    text-decoration: none;
+                    color: var(--text-soft);
+                    font-size: 14px;
+                    font-weight: 700;
+                    transition: 0.18s ease;
+                }
+
+                .nav a:hover,
+                .nav a.active {
+                    background: rgba(37, 99, 235, 0.16);
+                    color: #dbeafe;
+                }
+
+                .sidebar-footer {
+                    position: absolute;
+                    left: 18px;
+                    right: 18px;
+                    bottom: 22px;
+                    padding: 14px;
+                    border: 1px solid var(--border);
+                    border-radius: 18px;
+                    background: rgba(15, 23, 42, 0.68);
+                }
+
+                .sidebar-footer span {
+                    display: block;
+                    color: var(--text-muted);
+                    font-size: 12px;
+                    margin-bottom: 6px;
+                }
+
+                .sidebar-footer strong {
+                    font-size: 14px;
+                }
+
+                .main {
+                    min-width: 0;
+                    padding: 28px;
                 }
 
                 .topbar {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    gap: 20px;
-                    margin-bottom: 28px;
+                    gap: 18px;
+                    margin-bottom: 24px;
                 }
 
-                .brand h1 {
+                .page-title h1 {
                     margin: 0;
-                    font-size: 34px;
-                    letter-spacing: -0.8px;
+                    font-size: clamp(28px, 4vw, 42px);
+                    letter-spacing: -1.2px;
                 }
 
-                .brand p {
-                    margin: 8px 0 0;
-                    color: #94a3b8;
+                .page-title p {
+                    margin: 9px 0 0;
+                    color: var(--text-muted);
                     font-size: 15px;
+                }
+
+                .top-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
                 }
 
                 .badge {
@@ -159,19 +307,68 @@ function layout(content) {
                     align-items: center;
                     gap: 8px;
                     padding: 10px 14px;
-                    border: 1px solid rgba(148, 163, 184, 0.22);
+                    border: 1px solid var(--border-strong);
                     border-radius: 999px;
-                    background: rgba(15, 23, 42, 0.62);
-                    color: #cbd5e1;
-                    font-size: 14px;
+                    background: rgba(15, 23, 42, 0.64);
+                    color: var(--text-soft);
+                    font-size: 13px;
+                    font-weight: 700;
+                    white-space: nowrap;
                 }
 
                 .dot {
                     width: 9px;
                     height: 9px;
                     border-radius: 999px;
-                    background: #22c55e;
-                    box-shadow: 0 0 18px #22c55e;
+                    background: var(--green);
+                    box-shadow: 0 0 18px var(--green);
+                }
+
+                .hero {
+                    position: relative;
+                    overflow: hidden;
+                    border: 1px solid var(--border);
+                    border-radius: 28px;
+                    padding: 24px;
+                    margin-bottom: 20px;
+                    background:
+                        linear-gradient(135deg, rgba(37, 99, 235, 0.20), rgba(34, 197, 94, 0.08)),
+                        rgba(15, 23, 42, 0.72);
+                    box-shadow: var(--shadow);
+                }
+
+                .hero::after {
+                    content: "";
+                    position: absolute;
+                    width: 220px;
+                    height: 220px;
+                    right: -80px;
+                    top: -80px;
+                    border-radius: 999px;
+                    background: rgba(96, 165, 250, 0.14);
+                    filter: blur(4px);
+                }
+
+                .hero-content {
+                    position: relative;
+                    z-index: 1;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 18px;
+                }
+
+                .hero h2 {
+                    margin: 0;
+                    font-size: 22px;
+                    letter-spacing: -0.4px;
+                }
+
+                .hero p {
+                    max-width: 720px;
+                    margin: 8px 0 0;
+                    color: var(--text-muted);
+                    line-height: 1.5;
                 }
 
                 .stats {
@@ -182,22 +379,24 @@ function layout(content) {
                 }
 
                 .stat {
-                    background: rgba(30, 41, 59, 0.78);
-                    border: 1px solid rgba(148, 163, 184, 0.13);
-                    border-radius: 18px;
+                    background: var(--bg-card);
+                    border: 1px solid var(--border);
+                    border-radius: 20px;
                     padding: 18px;
-                    box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+                    box-shadow: 0 18px 45px rgba(0,0,0,0.22);
                 }
 
                 .stat span {
-                    color: #94a3b8;
+                    color: var(--text-muted);
                     font-size: 13px;
+                    font-weight: 700;
                 }
 
                 .stat strong {
                     display: block;
                     margin-top: 8px;
-                    font-size: 24px;
+                    font-size: 26px;
+                    letter-spacing: -0.6px;
                 }
 
                 .grid {
@@ -207,11 +406,12 @@ function layout(content) {
                 }
 
                 .card {
-                    background: rgba(30, 41, 59, 0.86);
-                    border: 1px solid rgba(148, 163, 184, 0.16);
-                    border-radius: 22px;
+                    background: var(--bg-card);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-lg);
                     padding: 24px;
-                    box-shadow: 0 24px 55px rgba(0,0,0,0.28);
+                    box-shadow: 0 24px 55px rgba(0,0,0,0.26);
+                    backdrop-filter: blur(16px);
                 }
 
                 .card-header {
@@ -224,22 +424,24 @@ function layout(content) {
 
                 .card h2 {
                     margin: 0;
-                    font-size: 23px;
+                    font-size: 22px;
+                    letter-spacing: -0.4px;
                 }
 
                 .card small {
                     display: block;
                     margin-top: 7px;
-                    color: #94a3b8;
+                    color: var(--text-muted);
                 }
 
                 .status-pill {
                     padding: 7px 11px;
                     border-radius: 999px;
-                    font-weight: 700;
-                    font-size: 12px;
+                    font-weight: 900;
+                    font-size: 11px;
                     text-transform: uppercase;
-                    letter-spacing: .4px;
+                    letter-spacing: .5px;
+                    white-space: nowrap;
                 }
 
                 .online {
@@ -268,17 +470,18 @@ function layout(content) {
                 }
 
                 .info-item {
-                    background: rgba(15, 23, 42, 0.55);
+                    background: var(--bg-soft);
                     border: 1px solid rgba(148, 163, 184, 0.10);
-                    border-radius: 14px;
-                    padding: 13px;
+                    border-radius: 15px;
+                    padding: 14px;
                 }
 
                 .info-item span {
                     display: block;
-                    color: #94a3b8;
+                    color: var(--text-muted);
                     font-size: 12px;
                     margin-bottom: 6px;
+                    font-weight: 700;
                 }
 
                 .info-item strong {
@@ -292,28 +495,43 @@ function layout(content) {
                     margin-top: 18px;
                 }
 
-                button, .button-link {
+                button,
+                .button-link {
                     border: 0;
-                    border-radius: 12px;
+                    border-radius: 13px;
                     padding: 12px 16px;
-                    font-weight: 800;
+                    font-weight: 900;
                     cursor: pointer;
                     text-decoration: none;
                     font-size: 14px;
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
+                    gap: 8px;
+                    transition: transform 0.15s ease, opacity 0.15s ease, border 0.15s ease;
+                }
+
+                button:hover,
+                .button-link:hover {
+                    transform: translateY(-1px);
+                    opacity: 0.94;
+                }
+
+                button:active,
+                .button-link:active {
+                    transform: translateY(0);
                 }
 
                 .primary {
-                    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                    background: linear-gradient(135deg, var(--blue), #1d4ed8);
                     color: white;
+                    box-shadow: 0 14px 28px rgba(37, 99, 235, 0.26);
                 }
 
                 .secondary {
-                    background: rgba(15, 23, 42, 0.8);
+                    background: rgba(15, 23, 42, 0.82);
                     color: #bfdbfe;
-                    border: 1px solid rgba(147, 197, 253, 0.18);
+                    border: 1px solid rgba(147, 197, 253, 0.20);
                 }
 
                 .danger {
@@ -322,15 +540,22 @@ function layout(content) {
                     border: 1px solid rgba(248, 113, 113, 0.22);
                 }
 
+                .ghost {
+                    background: transparent;
+                    color: var(--text-soft);
+                    border: 1px solid var(--border);
+                }
+
                 code {
                     color: #bfdbfe;
-                    background: rgba(15, 23, 42, 0.7);
+                    background: rgba(15, 23, 42, 0.75);
                     padding: 3px 7px;
                     border-radius: 7px;
+                    font-size: 13px;
                 }
 
                 pre {
-                    background: rgba(2, 6, 23, 0.88);
+                    background: rgba(2, 6, 23, 0.90);
                     border: 1px solid rgba(148, 163, 184, 0.14);
                     padding: 22px;
                     border-radius: 18px;
@@ -338,50 +563,153 @@ function layout(content) {
                     overflow: auto;
                     line-height: 1.5;
                     color: #dbeafe;
+                    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
                 }
 
                 .footer {
-                    margin-top: 26px;
+                    margin-top: 28px;
                     color: #64748b;
                     font-size: 13px;
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 12px;
+                    flex-wrap: wrap;
                 }
 
-                @media (max-width: 600px) {
-                    .topbar {
+                @media (max-width: 900px) {
+                    .app-shell {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .sidebar {
+                        position: relative;
+                        height: auto;
+                        border-right: 0;
+                        border-bottom: 1px solid var(--border);
+                    }
+
+                    .sidebar-footer {
+                        position: static;
+                        margin-top: 18px;
+                    }
+
+                    .nav {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+                    }
+
+                    .main {
+                        padding: 22px;
+                    }
+
+                    .topbar,
+                    .hero-content {
                         flex-direction: column;
                         align-items: flex-start;
                     }
+                }
 
-                    .brand h1 {
-                        font-size: 27px;
+                @media (max-width: 600px) {
+                    .main {
+                        padding: 18px;
                     }
 
                     .info {
                         grid-template-columns: 1fr;
                     }
+
+                    .card {
+                        padding: 20px;
+                    }
+
+                    .top-actions {
+                        width: 100%;
+                    }
+
+                    .badge {
+                        width: 100%;
+                        justify-content: center;
+                    }
                 }
             </style>
         </head>
+
         <body>
-            <main class="page">
-                <section class="topbar">
-                    <div class="brand">
-                        <h1>M1000gt Control</h1>
-                        <p>Central de controle dos assistentes virtuais com IA.</p>
+            <div class="app-shell">
+
+                <aside class="sidebar">
+                    <div class="logo">
+                        <div class="logo-mark">M</div>
+                        <div class="logo-text">
+                            <strong>M1000gt Control</strong>
+                            <span>AI Business Panel</span>
+                        </div>
                     </div>
 
-                    <div class="badge">
-                        <span class="dot"></span>
-                        Operação multi-clientes
+                    <div class="nav-label">Operação</div>
+                    <nav class="nav">
+                        <a class="${active('dashboard')}" href="/">🏠 Dashboard</a>
+                        <a class="${active('clientes')}" href="/clientes">🏢 Clientes</a>
+                        <a class="${active('qr')}" href="/qr">📲 QR Code</a>
+                        <a class="${active('logs')}" href="/logs">📄 Logs</a>
+                    </nav>
+
+                    <div class="nav-label">Sistema</div>
+                    <nav class="nav">
+                        <a class="${active('config')}" href="/config">⚙️ Configurações</a>
+                        <a class="${active('status')}" href="/status">🟢 Status geral</a>
+                    </nav>
+
+                    <div class="sidebar-footer">
+                        <span>Modo de operação</span>
+                        <strong>Multi-clientes ativo</strong>
                     </div>
-                </section>
+                </aside>
 
-                ${content}
+                <main class="main">
+                    <section class="topbar">
+                        <div class="page-title">
+                            <h1>Painel do Gustavo</h1>
+                            <p>Controle seus assistentes virtuais, sessões do WhatsApp, logs e operações em tempo real.</p>
+                        </div>
 
-                <div class="footer">
-                    M1000gt • Assistentes IA • Operação multi-clientes
-                </div>
-            </main>
+                        <div class="top-actions">
+                            <div class="badge">
+                                <span class="dot"></span>
+                                Sistema online
+                            </div>
+
+                            <div class="badge">
+                                IA operacional
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="hero">
+                        <div class="hero-content">
+                            <div>
+                                <h2>Central M1000gt</h2>
+                                <p>
+                                    Painel privado para gerenciar bots, clientes, QR Codes, reinicializações e monitoramento
+                                    dos assistentes virtuais com IA.
+                                </p>
+                            </div>
+
+                            <a class="button-link primary" href="/qr">
+                                Abrir QR Code
+                            </a>
+                        </div>
+                    </section>
+
+                    ${content}
+
+                    <div class="footer">
+                        <span>M1000gt • Assistentes IA • Operação multi-clientes</span>
+                        <span>Painel privado de controle</span>
+                    </div>
+                </main>
+
+            </div>
         </body>
         </html>
     `;
