@@ -822,7 +822,10 @@ app.get('/', async (req, res) => {
         </section>
     `;
 
-    res.send(layout(content));
+  res.send(layout(conteudo, 'dashboard'));
+res.send(layout(conteudo, 'qr'));
+res.send(layout(conteudo, 'logs'));
+res.send(layout(conteudo, 'clientes'));
 });
 
 app.post('/restart/:pm2', async (req, res) => {
