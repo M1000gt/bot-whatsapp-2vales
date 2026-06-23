@@ -38,3 +38,11 @@ dashboard/*backup*.json
 
 # Arquivo solto criado por engano na raiz
 /server.js
+
+# Runtime dos clientes/demos
+clientes/**/logs/
+clientes/**/qrcode.png
+clientes/**/qrcode-status.json
+clientes/**/control.json
+clientes/**/.wwebjs_auth/
+clientes/**/.wwebjs_cache/

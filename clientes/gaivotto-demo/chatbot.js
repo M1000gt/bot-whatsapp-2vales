@@ -1,61 +1,44 @@
-const qrcode =
-require('qrcode-terminal');
-const {
-    Client,
-    LocalAuth,
-    MessageMedia
-} = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const fs = require('fs');
+const path = require('path');
 
-const enviar =
-require('./Utils/enviar');
+const enviar = require('./Utils/enviar');
+const { falarComAna } = require('./ana/Ana');
 
-const menu =
-require('./Mensagens/menu');
-
-const horarios =
-require('./Mensagens/horarios');
-
-const localizacao =
-require('./Mensagens/localizacao');
-
-const reservaModelo =
-require('./Mensagens/reservaModelo');
-
-const {
-    grupoReservas,
-    caminhoCardapio
-} = require('./config/config');
-const{
-    falarComAna
-} = require('./ana/Ana')
 // ========================================
-// CLIENT (VPS STABLE MODE)
+// CAMINHOS DA DEMO
+// ========================================
+
+const CONTROL_PATH = path.join(__dirname, 'control.json');
+const conversaLogPath = path.join(__dirname, 'logs', 'conversas.log');
+const leadsLogPath = path.join(__dirname, 'logs', 'leads.log');
+
+// ========================================
+// CLIENTE WHATSAPP — GAIVOTTO DEMO
 // ========================================
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        clientId:  'gaivotto-demo' // 👈 EVITA CONFLITO DE SESSÃO NO PM2
+        clientId: 'gaivotto-demo'
     }),
 
     puppeteer: {
         headless: true,
         executablePath: '/usr/bin/chromium-browser',
-        
-
- 
 
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            //'--no-zygote',
-            //'--single-process'
+            '--no-zygote',
+            '--single-process',
+            '--ignore-certificate-errors',
+            '--ignore-certificate-errors-spki-list',
+            '--disable-features=CertificateTransparencyComponentUpdater'
         ]
-    },
-
-
+    }
 });
 
 require('./qrcode-safe')(client);
@@ -68,107 +51,54 @@ process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
 // ========================================
-function saudacao() {
-    const hora = new Date().getHours();
+// CONTROLE DO DASHBOARD
+// ========================================
 
-    if (hora < 12) return 'Olá, bom dia senhores! ☀️';
-    if (hora < 18) return 'Olá, boa tarde senhores! 🌤️';
-    return 'Olá, boa noite senhores! 🌙';
-}
-function atendimentoAutomaticoAtivo() {
+function carregarControle() {
     try {
-        const raw = fs.readFileSync('/root/bot-whatsapp-2vales/clientes/gaivotto-demo/control.json', 'utf8');
-        const controle = JSON.parse(raw);
-        return controle.autoReply !== false;
+        if (!fs.existsSync(CONTROL_PATH)) {
+            fs.writeFileSync(CONTROL_PATH, JSON.stringify({ autoReply: true }, null, 2));
+            return { autoReply: true };
+        }
+
+        const raw = fs.readFileSync(CONTROL_PATH, 'utf8');
+        return JSON.parse(raw);
     } catch (error) {
-        return true;
+        console.error('Erro ao carregar control.json:', error.message);
+        return { autoReply: true };
     }
 }
-if (!atendimentoAutomaticoAtivo()) {
-    console.log('Modo humano ativo. Demo não respondeu automaticamente.');
-    return;
+
+function atendimentoAutomaticoAtivo() {
+    const controle = carregarControle();
+    return controle.autoReply !== false;
 }
-// ========================================
-// PALAVRAS MENU
-// ========================================
-
-const boasVindas = [
-    'oi', 'olá', 'ola', 'menu',
-    'bom dia', 'boa tarde', 'boa noite',
-    'ola bom dia', 'ola boa tarde', 'ola boa noite',
-    'olá bom dia', 'olá boa tarde', 'olá boa noite'
-    ]
-const modoAna = {};
-const ultimaReservaEnviada = {};
-// ========================================
-
-// QR CODE
-// ========================================
-
-client.on('qr', (qr) => {
-    console.log('📲 Escaneie o QR Code:\n');
-    qrcode.generate(qr, { small: true });
-});
 
 // ========================================
-// READY
+// LOGS
 // ========================================
-
-client.on('ready', async () => {
-    console.log('🤖 Bot conectado!');
-    console.log('🚀 Sistema ativo!\n');
-
-   // try {
-       // const chats = await client.getChats();
-
-        //console.log('📋 GRUPOS ENCONTRADOS:\n');
-
-       // chats.forEach(chat => {
-          //  if (chat.isGroup) {
-              //  console.log('-------------------------');
-               // console.log('GRUPO:', chat.name || 'SEM NOME');
-               // console.log('ID:', chat.id._serialized);
-           // }
-      //  });
-
-   // } catch (err) {
-        //console.error('❌ Erro grupos:', err);
-   // }
-});
-
-
-// ========================================
-// MENSAGENS
-// ========================================
-
-
-// ========================================
-// LOG LIMPO DE CONVERSAS
-// ========================================
-
-const fsLog = require('fs');
-const pathLog = require('path');
-
-const conversaLogPath = pathLog.join(__dirname, 'logs', 'conversas.log');
 
 function mascararTextoSensivel(texto = '') {
     return String(texto)
         .replace(/senha\s*[:=]\s*\S+/gi, 'senha: [OCULTA]')
         .replace(/[\w.-]+\.pfx/gi, '[ARQUIVO PFX OCULTO]')
-        .replace(/\b\d{14}\b/g, '[CNPJ/CPF OCULTO]');
+        .replace(/\b\d{11,14}\b/g, '[DOCUMENTO OCULTO]');
+}
+
+async function obterNomeContato(message) {
+    try {
+        const contato = await message.getContact();
+        return contato.pushname || contato.name || contato.shortName || 'Sem nome';
+    } catch {
+        return 'Sem nome';
+    }
 }
 
 async function registrarConversaLimpa(message, origem, texto) {
     try {
-        fsLog.mkdirSync(pathLog.dirname(conversaLogPath), { recursive: true });
+        fs.mkdirSync(path.dirname(conversaLogPath), { recursive: true });
 
-        let nome = 'Sem nome';
-
-        try {
-            const contato = await message.getContact();
-            nome = contato.pushname || contato.name || contato.shortName || 'Sem nome';
-        } catch {}
-
+        const nome = await obterNomeContato(message);
         const id = message.from || 'sem-id';
         const textoSeguro = mascararTextoSensivel(texto);
 
@@ -179,74 +109,40 @@ Contato/ID: ${id}
 Mensagem: ${textoSeguro}
 `;
 
-        fsLog.appendFileSync(conversaLogPath, linha, 'utf8');
+        fs.appendFileSync(conversaLogPath, linha, 'utf8');
     } catch (error) {
-        console.error('Erro ao registrar conversa limpa:', error.message);
+        console.error('Erro ao registrar conversa:', error.message);
     }
 }
 
-
-
-// ========================================
-// FILTRO ADMINISTRATIVO / FORNECEDORES
-// ========================================
-
-function pareceMensagemAdministrativa(texto = '') {
-    const t = String(texto).toLowerCase();
-
-    const padroes = [
-        /promo[cç][aã]o\s+de\s+(carne|carnes|bebida|bebidas|heineken|cerveja|vinho|frango|peixe|pescado)/i,
-        /(carne|bebida|heineken|cerveja|vinho|frango|peixe|pescado).*(promo[cç][aã]o|semana|entrega|fornecedor|or[cç]amento)/i,
-        /fornecedor/i,
-        /contador|contabilidade|fiscal|imposto/i,
-        /nota\s*fiscal|nf-e|nfe|danfe|xml/i,
-        /boleto|cobran[cç]a|pagamento|pix/i,
-        /certificado|\.pfx|senha/i,
-        /mercadoria|produto\s+para\s+venda|or[cç]amento/i,
-        /entrego|entrega|entregar|retirada/i,
-        /vamos\s+precisar/i,
-        /precisam\s+de\s+mais\s+alguma\s+coisa/i,
-        /as\s+notinhas/i,
-        /total\s+r?\$?\s*\d+/i,
-        /segue\s+(arquivo|nota|boleto|certificado|xml|danfe)/i
-    ];
-
-    return padroes.some(regex => regex.test(t));
-}
-
-async function notificarAdministrativo(message, texto) {
+async function registrarLeadInteressado(message, textoCliente, respostaAna) {
     try {
-        let nome = 'Sem nome';
+        fs.mkdirSync(path.dirname(leadsLogPath), { recursive: true });
 
-        try {
-            const contato = await message.getContact();
-            nome = contato.pushname || contato.name || contato.shortName || 'Sem nome';
-        } catch {}
+        const nome = await obterNomeContato(message);
 
-        const aviso = `📌 MENSAGEM ADMINISTRATIVA / FORNECEDOR
+        const linha = `
+🔥 LEAD INTERESSADO
 
-👤 Nome:
-${nome}
+Data: ${new Date().toLocaleString('pt-BR')}
+Nome: ${nome}
+Contato/ID: ${message.from}
 
-📱 Contato/ID:
-${message.from}
+Mensagem do cliente:
+${mascararTextoSensivel(textoCliente)}
 
-━━━━━━━━━━━━━━━
+Resposta da Ana:
+${mascararTextoSensivel(respostaAna)}
 
-Mensagem recebida:
-${texto}
+━━━━━━━━━━━━━━━━━━━━
+`;
 
-━━━━━━━━━━━━━━━
-
-A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsável.`;
-
-        await client.sendMessage(grupoReservas, aviso);
+        fs.appendFileSync(leadsLogPath, linha, 'utf8');
+        console.log('🔥 Lead interessado registrado.');
     } catch (error) {
-        console.error('Erro ao notificar administrativo:', error.message);
+        console.error('Erro ao registrar lead:', error.message);
     }
 }
-
-
 
 // ========================================
 // SIMULAR DIGITAÇÃO
@@ -296,104 +192,83 @@ async function iniciarDigitando(message) {
     }
 }
 
-
-
 // ========================================
-// CACHE DO CARDÁPIO
+// QR CODE NO TERMINAL
 // ========================================
 
-let mediaCardapioCache = null;
+client.on('qr', (qr) => {
+    console.log('📲 Escaneie o QR Code da Gaivotto Studio:\n');
+    qrcode.generate(qr, { small: true });
+});
 
-function getMediaCardapio() {
-    if (!mediaCardapioCache) {
-        mediaCardapioCache = MessageMedia.fromFilePath(caminhoCardapio);
-        console.log('📄 Cardápio carregado em cache.');
-    }
+// ========================================
+// READY
+// ========================================
 
-    return mediaCardapioCache;
-}
+client.on('ready', async () => {
+    console.log('🤖 Bot Gaivotto Studio conectado!');
+    console.log('🚀 Demo ativa!\n');
+});
 
+// ========================================
+// MENSAGENS
+// ========================================
 
 client.on('message', async (message) => {
+    let pararDigitando = async () => {};
+
+    try {
         if (message.fromMe) return;
         if (!message.from) return;
         if (message.from === 'status@broadcast') return;
         if (message.from.endsWith('@newsletter')) return;
         if (message.from.endsWith('@g.us')) return;
         if (!message.body || !message.body.trim()) return;
-    try {
-         if (!message.body) return;
 
-        // Ignora mensagens enviadas pelo próprio bot
-        if (message.fromMe) return;
+        if (
+            !message.from.endsWith('@c.us') &&
+            !message.from.endsWith('@lid')
+        ) return;
 
-        // Ignora grupos
-        if (message.from.includes('@g.us')) return;
+        const textoCliente = message.body.trim();
 
-      // Aceita conversas individuais normais e contatos novos do WhatsApp
-      if (
-    !message.from.endsWith('@c.us') &&
-    !message.from.endsWith('@lid')
-      ) return;
+        await registrarConversaLimpa(message, 'CLIENTE', textoCliente);
 
-        const msg = message.body.toLowerCase().trim();
+        // Se o dashboard estiver em modo humano, registra, mas não responde.
+        if (!atendimentoAutomaticoAtivo()) {
+            await registrarConversaLimpa(
+                message,
+                'SISTEMA',
+                'Modo humano ativo. A Ana Demo não respondeu automaticamente.'
+            );
 
-        await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
-
-        if (pareceMensagemAdministrativa(msg)) {
-            await registrarConversaLimpa(message, 'ADMIN/FORNECEDOR BLOQUEADO', msg);
-            await notificarAdministrativo(message, msg);
+            console.log('Modo humano ativo. Demo não respondeu automaticamente.');
             return;
         }
 
-        // ========================================
-        // ANA COMO CÉREBRO PRINCIPAL
-        // ========================================
-
-        const pararDigitando = await iniciarDigitando(message);
+        pararDigitando = await iniciarDigitando(message);
 
         let respostaAna = await falarComAna(
             message.from,
-            message.body
+            textoCliente
         );
 
-        // ========================================
-        // MARCADORES DE AÇÃO
-        // ========================================
+        if (!respostaAna) {
+            respostaAna = 'Tive uma instabilidade momentânea no atendimento. Pode tentar novamente em instantes?';
+        }
 
-        const deveEnviarCardapio =
-            respostaAna.includes('[[ENVIAR_CARDAPIO]]');
-
-        const deveEnviarLocalizacao =
-            respostaAna.includes('[[ENVIAR_LOCALIZACAO]]');
-
-        const deveChamarAtendente =
+        const leadInteressado =
+            respostaAna.includes('[[LEAD_INTERESSADO]]') ||
             respostaAna.includes('[[CHAMAR_ATENDENTE]]');
 
-        const reservaMatch = respostaAna.match(
-            /\[\[RESERVA_COMPLETA\]\]([\s\S]*?)\[\[\/RESERVA_COMPLETA\]\]/
-        );
-
-        // ========================================
-        // REMOVE MARCADORES DA RESPOSTA AO CLIENTE
-        // ========================================
-
         respostaAna = respostaAna
-            .replace(/\[\[ENVIAR_CARDAPIO\]\]/g, '')
-            .replace(/\[\[ENVIAR_LOCALIZACAO\]\]/g, '')
+            .replace(/\[\[LEAD_INTERESSADO\]\]/g, '')
             .replace(/\[\[CHAMAR_ATENDENTE\]\]/g, '')
-            .replace(
-                /\[\[RESERVA_COMPLETA\]\]([\s\S]*?)\[\[\/RESERVA_COMPLETA\]\]/g,
-                ''
-            )
             .trim();
-
-        // ========================================
-        // ENVIA RESPOSTA DA ANA AO CLIENTE
-        // ========================================
 
         if (respostaAna) {
             await registrarConversaLimpa(message, 'ANA', respostaAna);
+
             await enviar(
                 client,
                 message.from,
@@ -401,86 +276,14 @@ client.on('message', async (message) => {
             );
         }
 
-        await pararDigitando();
-
-        // ========================================
-        // ENVIA CARDÁPIO SE A ANA PEDIR
-        // ========================================
-
-        if (deveEnviarCardapio) {
-            const media = getMediaCardapio();
-
-            await enviar(
-                client,
-                message.from,
-                media,
-                {
-                    caption: '📋 Segue o nosso cardápio oficial do 2Vales Restaurante!'
-                }
-            );
-        }
-
-        // ========================================
-        // ENVIA LOCALIZAÇÃO SE A ANA PEDIR
-        // ========================================
-
-        if (deveEnviarLocalizacao) {
-            await enviar(
-                client,
-                message.from,
-                localizacao
-            );
-        }
-
-        // ========================================
-        // AVISA O GRUPO SE PEDIR ATENDENTE
-        // ========================================
-
-        if (deveChamarAtendente) {
-            await enviar(
-                client,
-                grupoReservas,
-`👨‍💼 CLIENTE SOLICITOU ATENDIMENTO HUMANO
-
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
-
-━━━━━━━━━━━━━━━
-
-Mensagem do cliente:
-${message.body}`
-            );
-        }
-
-        // ========================================
-        // ENVIA RESERVA PARA O GRUPO
-        // ========================================
-
-        if (reservaMatch) {
-            const dadosReserva = reservaMatch[1].trim();
-
-            await enviar(
-                client,
-                grupoReservas,
-`📅 NOVA SOLICITAÇÃO DE RESERVA VIA ANA
-
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
-
-━━━━━━━━━━━━━━━
-
-${dadosReserva}`
-            );
+        if (leadInteressado) {
+            await registrarLeadInteressado(message, textoCliente, respostaAna);
         }
 
     } catch (err) {
-        console.error('❌ Erro geral:', err);
+        console.error('❌ Erro geral na demo:', err);
+    } finally {
+        await pararDigitando();
     }
 });
 
@@ -488,6 +291,6 @@ ${dadosReserva}`
 // START
 // ========================================
 
-console.log('🚀 Iniciando bot...');
+console.log('🚀 Iniciando bot Gaivotto Studio Demo...');
 
 client.initialize();
