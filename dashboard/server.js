@@ -1,6 +1,5 @@
 const express = require('express');
 const basicAuth = require('express-basic-auth');
-const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,135 +11,18 @@ const PORT = 3000;
 const DASH_USER = process.env.DASH_USER || 'gustavo';
 const DASH_PASS = process.env.DASH_PASS || 'troque-essa-senha';
 
-const CLIENTES_PATH = path.join(__dirname, 'clientes.json');
 
 app.use(basicAuth({
     users: { [DASH_USER]: DASH_PASS },
     challenge: true
 }));
 
-function carregarClientes() {
-    try {
-        if (!fs.existsSync(CLIENTES_PATH)) {
-            return [];
-        }
-
-        const raw = fs.readFileSync(CLIENTES_PATH, 'utf8');
-        return JSON.parse(raw);
-    } catch (error) {
-        console.error('Erro ao carregar clientes.json:', error.message);
-        return [];
-    }
-}
-
-function run(cmd) {
-    return new Promise((resolve) => {
-        exec(cmd, { maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
-            resolve(stdout || stderr || err?.message || '');
-        });
-    });
-}
-
-function escapeHtml(text) {
-    return String(text)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
-}
-
-async function getBotStatus(pm2Name) {
-    const statusRaw = await run('pm2 jlist');
-
-    try {
-        const list = JSON.parse(statusRaw);
-        const bot = list.find(b => b.name === pm2Name);
-
-        if (!bot) {
-            return {
-                status: 'não encontrado',
-                uptime: '-',
-                restarts: '-',
-                memory: '-',
-                cpu: '-'
-            };
-        }
-
-        const memoryMb = bot.monit && bot.monit.memory
-            ? `${Math.round(bot.monit.memory / 1024 / 1024)} MB`
-            : '-';
-
-        const cpu = bot.monit && bot.monit.cpu !== undefined
-            ? `${bot.monit.cpu}%`
-            : '-';
-
-        const uptimeMs = Date.now() - bot.pm2_env.pm_uptime;
-        const uptimeMin = Math.max(1, Math.floor(uptimeMs / 1000 / 60));
-
-        let uptimeText = `${uptimeMin} min`;
-
-        if (uptimeMin >= 60) {
-            const horas = Math.floor(uptimeMin / 60);
-            const minutos = uptimeMin % 60;
-            uptimeText = `${horas}h ${minutos}min`;
-        }
-
-        return {
-            status: bot.pm2_env.status,
-            uptime: uptimeText,
-            restarts: bot.pm2_env.restart_time,
-            memory: memoryMb,
-            cpu
-        };
-    } catch {
-        return {
-            status: 'erro ao ler',
-            uptime: '-',
-            restarts: '-',
-            memory: '-',
-            cpu: '-'
-        };
-    }
-}
-
-function encontrarCliente(pm2Name) {
-    const clientes = carregarClientes();
-    return clientes.find(item => item.pm2 === pm2Name);
-}
-
-function carregarControle(bot) {
-    if (!bot.controlFile) {
-        return { autoReply: true };
-    }
-
-    try {
-        if (!fs.existsSync(bot.controlFile)) {
-            fs.writeFileSync(bot.controlFile, JSON.stringify({ autoReply: true }, null, 2));
-            return { autoReply: true };
-        }
-
-        const raw = fs.readFileSync(bot.controlFile, 'utf8');
-        return JSON.parse(raw);
-    } catch (error) {
-        console.error('Erro ao carregar controle:', error.message);
-        return { autoReply: true };
-    }
-}
-
-function salvarControle(bot, controle) {
-    if (!bot.controlFile) {
-        return;
-    }
-
-    try {
-        const dir = path.dirname(bot.controlFile);
-        fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(bot.controlFile, JSON.stringify(controle, null, 2));
-    } catch (error) {
-        console.error('Erro ao salvar controle:', error.message);
-    }
-}
-
 const layout = require('./src/views/layout');
+const escapeHtml = require('./src/utils/escapeHtml');
+const { carregarClientes, encontrarCliente } = require('./src/services/clientesService');
+const { carregarControle, salvarControle } = require('./src/services/controleService');
+const { getBotStatus, restartBot, getPm2Logs } = require('./src/services/pm2Service');
+
 
 app.get('/', async (req, res) => {
     const clientes = carregarClientes();
@@ -302,7 +184,7 @@ app.post('/restart/:pm2', async (req, res) => {
         return res.status(404).send('Bot não encontrado.');
     }
 
-    await run(`pm2 restart ${bot.pm2}`);
+    await restartBot(bot.pm2);
     res.redirect('/');
 });
 
@@ -331,7 +213,7 @@ app.get('/logs/:pm2', async (req, res) => {
         return res.status(404).send('Bot não encontrado.');
     }
 
-    const logs = await run(`pm2 logs ${bot.pm2} --lines 100 --nostream`);
+    const logs = await getPm2Logs(bot.pm2, 100);
 
     const content = `
         <div class="card">
