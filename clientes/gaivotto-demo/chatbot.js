@@ -5,6 +5,7 @@ const path = require('path');
 
 const enviar = require('./Utils/enviar');
 const { falarComAna } = require('./ana/Ana');
+const { grupoLeads } = require('./config/config');
 
 // ========================================
 // CAMINHOS DA DEMO
@@ -144,6 +145,47 @@ ${mascararTextoSensivel(respostaAna)}
     }
 }
 
+
+async function notificarLeadInteressado(message, textoCliente, respostaAna) {
+    try {
+        if (!grupoLeads) {
+            console.log('Grupo de leads não configurado.');
+            return;
+        }
+
+        const nome = await obterNomeContato(message);
+
+        const aviso = `🔥 NOVO LEAD INTERESSADO — GAIVOTTO STUDIO
+
+👤 Nome:
+${nome}
+
+📱 Contato/ID:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+Mensagem do cliente:
+${mascararTextoSensivel(textoCliente)}
+
+━━━━━━━━━━━━━━━
+
+Resposta da Ana:
+${mascararTextoSensivel(respostaAna)}
+
+━━━━━━━━━━━━━━━
+
+A pessoa demonstrou interesse no assistente virtual.
+Assuma a conversa quando possível.`;
+
+        await client.sendMessage(grupoLeads, aviso);
+        console.log('🔥 Lead enviado ao grupo.');
+
+    } catch (error) {
+        console.error('Erro ao notificar lead interessado:', error.message);
+    }
+}
+
 // ========================================
 // SIMULAR DIGITAÇÃO
 // ========================================
@@ -257,9 +299,12 @@ client.on('message', async (message) => {
             respostaAna = 'Tive uma instabilidade momentânea no atendimento. Pode tentar novamente em instantes?';
         }
 
+        const textoLead = textoCliente.toLowerCase();
+
         const leadInteressado =
             respostaAna.includes('[[LEAD_INTERESSADO]]') ||
-            respostaAna.includes('[[CHAMAR_ATENDENTE]]');
+            respostaAna.includes('[[CHAMAR_ATENDENTE]]') ||
+            /tenho interesse|tenho interesse sim|encaminhe|encaminhar|quero contratar|como contratar|pre[cç]o|valor|mensalidade|falar com o gustavo|falar com gustavo|chama o gustavo|pode me chamar|quero uma demonstra[cç][aã]o|quero uma demo/i.test(textoLead);
 
         respostaAna = respostaAna
             .replace(/\[\[LEAD_INTERESSADO\]\]/g, '')
@@ -278,6 +323,7 @@ client.on('message', async (message) => {
 
         if (leadInteressado) {
             await registrarLeadInteressado(message, textoCliente, respostaAna);
+            await notificarLeadInteressado(message, textoCliente, respostaAna);
         }
 
     } catch (err) {
