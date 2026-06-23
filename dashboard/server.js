@@ -599,6 +599,34 @@ function layout(content, currentPage = 'dashboard') {
                     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
                 }
 
+                
+                .system-alert {
+                    border: 1px solid rgba(248, 113, 113, 0.35);
+                    background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(127, 29, 29, 0.28));
+                    border-radius: 22px;
+                    padding: 18px 20px;
+                    margin-bottom: 20px;
+                    box-shadow: 0 0 32px rgba(239, 68, 68, 0.20);
+                    animation: alertPulse 1.4s ease-in-out infinite;
+                }
+
+                .system-alert strong {
+                    display: block;
+                    color: #fecaca;
+                    font-size: 18px;
+                    margin-bottom: 6px;
+                }
+
+                .system-alert span {
+                    color: #fecaca;
+                    line-height: 1.5;
+                }
+
+                @keyframes alertPulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.82; transform: scale(1.005); }
+                }
+
                 .footer {
                     margin-top: 28px;
                     color: #64748b;
@@ -685,6 +713,7 @@ function layout(content, currentPage = 'dashboard') {
                         <a class="${active('clientes')}" href="/clientes">🏢 Clientes</a>
                         <a class="${active('qr')}" href="/qr">📲 QR Code</a>
                         <a class="${active('logs')}" href="/logs">📄 Logs</a>
+                        <a class="${active('leads')}" href="/leads">🔥 Leads</a>
                     </nav>
 
                     <div class="nav-label">Sistema</div>
@@ -753,6 +782,7 @@ app.get('/', async (req, res) => {
 
     let onlineCount = 0;
     let cards = '';
+    let alertasSistema = '';
 
     for (const bot of clientes) {
         const data = await getBotStatus(bot.pm2);
@@ -766,6 +796,26 @@ app.get('/', async (req, res) => {
         const isOnline = data.status === 'online';
 
         if (isOnline) onlineCount++;
+
+        const deveMonitorar = bot.monitorar !== false;
+
+        const problemaDetectado =
+            deveMonitorar &&
+            data.status !== 'online' &&
+            data.status !== 'conectado' &&
+            data.status !== 'autenticado';
+
+        if (problemaDetectado) {
+            alertasSistema += `
+                <div class="system-alert">
+                    <strong>🚨 Atenção: possível problema detectado</strong>
+                    <span>
+                        ${escapeHtml(bot.nome)} está com status <code>${escapeHtml(data.status)}</code>.
+                        Verifique logs, QR Code ou reinicie o bot se necessário.
+                    </span>
+                </div>
+            `;
+        }
 
         let statusClass = 'warning';
 
@@ -835,6 +885,8 @@ app.get('/', async (req, res) => {
 
                     <a class="button-link secondary" href="/conversas/${encodeURIComponent(bot.pm2)}">Ver conversas</a>
 
+                    ${bot.leadsLog ? `<a class="button-link secondary" href="/leads/${encodeURIComponent(bot.pm2)}">Ver leads</a>` : ``}
+
                     <a class="button-link danger" href="/qrcode/${encodeURIComponent(bot.pm2)}">Ver QR Code</a>
                 </div>
             </div>
@@ -851,6 +903,8 @@ app.get('/', async (req, res) => {
     }
 
     const content = `
+        ${alertasSistema}
+
         <section class="stats">
             <div class="stat">
                 <span>Clientes cadastrados</span>
@@ -1163,6 +1217,8 @@ app.get('/logs', async (req, res) => {
                 <div class="actions">
                     <a class="button-link secondary" href="/logs/${encodeURIComponent(bot.pm2)}">Ver logs técnicos</a>
                     <a class="button-link secondary" href="/conversas/${encodeURIComponent(bot.pm2)}">Ver conversas</a>
+
+                    ${bot.leadsLog ? `<a class="button-link secondary" href="/leads/${encodeURIComponent(bot.pm2)}">Ver leads</a>` : ``}
                 </div>
             </div>
         `;
@@ -1231,6 +1287,100 @@ app.get('/config', (req, res) => {
 
     res.send(layout(content, 'config'));
 });
+
+
+
+app.get('/leads', async (req, res) => {
+    const clientes = carregarClientes();
+    const clientesComLeads = clientes.filter(bot => bot.leadsLog);
+
+    let cards = '';
+
+    for (const bot of clientesComLeads) {
+        let totalLeads = 0;
+        let ultimoLead = 'Nenhum lead registrado ainda.';
+
+        if (bot.leadsLog && fs.existsSync(bot.leadsLog)) {
+            const conteudo = fs.readFileSync(bot.leadsLog, 'utf8');
+            totalLeads = (conteudo.match(/🔥 LEAD INTERESSADO/g) || []).length;
+
+            const partes = conteudo.split('🔥 LEAD INTERESSADO').filter(Boolean);
+            if (partes.length) {
+                ultimoLead = '🔥 LEAD INTERESSADO' + partes[partes.length - 1];
+            }
+        }
+
+        cards += `
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>${escapeHtml(bot.nome)}</h2>
+                        <small>Leads captados • <code>${escapeHtml(bot.pm2)}</code></small>
+                    </div>
+
+                    <span class="status-pill ${totalLeads > 0 ? 'online' : 'warning'}">
+                        ${totalLeads} lead${totalLeads === 1 ? '' : 's'}
+                    </span>
+                </div>
+
+                <pre>${escapeHtml(ultimoLead)}</pre>
+
+                <div class="actions">
+                    <a class="button-link primary" href="/leads/${encodeURIComponent(bot.pm2)}">Abrir leads</a>
+                    <a class="button-link secondary" href="/">Voltar</a>
+                </div>
+            </div>
+        `;
+    }
+
+    if (!cards) {
+        cards = `
+            <div class="card">
+                <h2>Nenhum funil de leads configurado</h2>
+                <small>Adicione <code>leadsLog</code> no cliente desejado dentro do <code>clientes.json</code>.</small>
+            </div>
+        `;
+    }
+
+    const content = `
+        <section class="grid">
+            ${cards}
+        </section>
+    `;
+
+    res.send(layout(content, 'leads'));
+});
+
+app.get('/leads/:pm2', async (req, res) => {
+    const bot = encontrarCliente(req.params.pm2);
+
+    if (!bot) {
+        return res.status(404).send('Bot não encontrado.');
+    }
+
+    let leads = 'Nenhum lead registrado ainda.';
+
+    if (bot.leadsLog && fs.existsSync(bot.leadsLog)) {
+        leads = fs.readFileSync(bot.leadsLog, 'utf8') || leads;
+    }
+
+    const content = `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Leads recentes</h2>
+                    <small>${escapeHtml(bot.nome)} • <code>${escapeHtml(bot.pm2)}</code></small>
+                </div>
+                <a class="button-link secondary" href="/leads">Voltar</a>
+            </div>
+
+            <pre>${escapeHtml(leads)}</pre>
+        </div>
+    `;
+
+    res.send(layout(content, 'leads'));
+});
+
 
 app.listen(PORT, () => {
     console.log(`✅ Dashboard M1000gt Control rodando na porta ${PORT}`);

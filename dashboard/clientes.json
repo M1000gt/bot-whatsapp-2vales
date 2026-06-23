@@ -18,6 +18,7 @@
     "qrImage": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/qrcode-status.json",
     "conversationLog": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/logs/conversas.log",
+    "leadsLog": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/logs/leads.log",
     "controlFile": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/control.json"
   },
   {
@@ -26,6 +27,7 @@
     "pm2": "bot-pousada",
     "tipo": "Implantação",
     "cliente": "Pousada",
+     "monitorar": false,
     "qrImage": "/root/bot-whatsapp-2vales/clientes/pousada/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/clientes/pousada/qrcode-status.json"
   }
