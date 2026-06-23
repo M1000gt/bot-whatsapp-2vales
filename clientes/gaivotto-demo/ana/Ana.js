@@ -19,14 +19,14 @@ const PROMPT_ANA = [
     carregarPrompt("Identidade/Identidade.txt"),
     carregarPrompt("Identidade/Personalidade.txt"),
     carregarPrompt("Negocio/Informacoes.txt"),
-    carregarPrompt("Negocio/Pets.txt"),
+   // carregarPrompt("Negocio/Pets.txt"),
     carregarPrompt("Operacao/Regras.txt"),
-    carregarPrompt("Operacao/Reservas.txt"),
-    carregarPrompt("Operacao/Exemplos.txt"),
-    carregarPrompt("Operacao/RespostasObjetivas.txt"),
-     carregarPrompt("Operacao/Validacoes.txt"),
-     carregarPrompt("Operacao/AntiInvencao.txt"),
-     carregarPrompt("Negocio/Cardapio.txt"),
+    //carregarPrompt("Operacao/Reservas.txt"),
+   // carregarPrompt("Operacao/Exemplos.txt"),
+   // carregarPrompt("Operacao/RespostasObjetivas.txt"),
+    // carregarPrompt("Operacao/Validacoes.txt"),
+    // carregarPrompt("Operacao/AntiInvencao.txt"),
+     //carregarPrompt("Negocio/Cardapio.txt"),
 ].join("\n\n");
 
 async function falarComAna(numero, mensagemCliente) {
