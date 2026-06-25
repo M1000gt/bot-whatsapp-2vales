@@ -10,6 +10,8 @@ require('./Utils/enviar');
 
 const { atendimentoAutomaticoAtivo } = require('./Utils/controleAtendimento');
 
+const { registrarLogMensal } = require('./Utils/logMensal');
+
 const menu =
 require('./Mensagens/menu');
 
@@ -139,6 +141,30 @@ const pathLog = require('path');
 
 const conversaLogPath = pathLog.join(__dirname, 'logs', 'conversas.log');
 
+function dataHoraBrasil() {
+    const partes = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).formatToParts(new Date());
+
+    const mapa = {};
+
+    for (const parte of partes) {
+        if (parte.type !== 'literal') {
+            mapa[parte.type] = parte.value;
+        }
+    }
+
+    return `${mapa.day}/${mapa.month}/${mapa.year}, ${mapa.hour}:${mapa.minute}:${mapa.second}`;
+}
+
+
 function mascararTextoSensivel(texto = '') {
     return String(texto)
         .replace(/senha\s*[:=]\s*\S+/gi, 'senha: [OCULTA]')
@@ -161,13 +187,14 @@ async function registrarConversaLimpa(message, origem, texto) {
         const textoSeguro = mascararTextoSensivel(texto);
 
         const linha = `
-[${new Date().toLocaleString('pt-BR')}] ${origem}
+[${dataHoraBrasil()}] ${origem}
 Nome: ${nome}
 Contato/ID: ${id}
 Mensagem: ${textoSeguro}
 `;
 
         fsLog.appendFileSync(conversaLogPath, linha, 'utf8');
+        registrarLogMensal('conversas', linha);
     } catch (error) {
         console.error('Erro ao registrar conversa limpa:', error.message);
     }
