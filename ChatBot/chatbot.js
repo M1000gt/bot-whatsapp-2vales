@@ -8,6 +8,8 @@ const {
 const enviar =
 require('./Utils/enviar');
 
+const { atendimentoAutomaticoAtivo } = require('./Utils/controleAtendimento');
+
 const menu =
 require('./Mensagens/menu');
 
@@ -304,6 +306,10 @@ client.on('message', async (message) => {
         if (message.fromMe) return;
         if (!message.from) return;
         if (message.from === 'status@broadcast') return;
+        if (!atendimentoAutomaticoAtivo()) {
+           console.log('⏸️ Atendimento automático pausado pelo painel. Mensagem ignorada:', message.from);
+               return;
+   }
         if (message.from.endsWith('@newsletter')) return;
         if (message.from.endsWith('@g.us')) return;
         if (!message.body || !message.body.trim()) return;

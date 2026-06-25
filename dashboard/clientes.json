@@ -5,6 +5,7 @@
     "pm2": "bot2vales",
     "tipo": "Produção",
     "cliente": "Restaurante",
+    "controlFile": "/root/bot-whatsapp-2vales/ChatBot/control.json",
     "qrImage": "/root/bot-whatsapp-2vales/ChatBot/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/ChatBot/qrcode-status.json",
     "conversationLog": "/root/bot-whatsapp-2vales/ChatBot/logs/conversas.log"

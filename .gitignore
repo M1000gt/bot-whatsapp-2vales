@@ -46,3 +46,5 @@ clientes/**/qrcode-status.json
 clientes/**/control.json
 clientes/**/.wwebjs_auth/
 clientes/**/.wwebjs_cache/
+ChatBot/control.json
+*.save
