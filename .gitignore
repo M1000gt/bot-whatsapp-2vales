@@ -48,3 +48,4 @@ clientes/**/.wwebjs_auth/
 clientes/**/.wwebjs_cache/
 ChatBot/control.json
 *.save
+ChatBot/handoff-humano.json

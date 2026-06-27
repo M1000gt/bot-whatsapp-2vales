@@ -9,6 +9,7 @@ const enviar =
 require('./Utils/enviar');
 
 const { atendimentoAutomaticoAtivo } = require('./Utils/controleAtendimento');
+const { registrarEnvioAutomatico, processarMensagemEnviadaPeloNumero, atendimentoHumanoAtivo } = require('./Utils/handoffHumano');
 
 const { registrarLogMensal } = require('./Utils/logMensal');
 
@@ -358,6 +359,12 @@ client.on('message', async (message) => {
         const msg = message.body.toLowerCase().trim();
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
+
+        if (atendimentoHumanoAtivo(message.from)) {
+            await registrarConversaLimpa(message, 'SISTEMA', 'Atendimento humano ativo nesta conversa. Ana não respondeu para não falar por cima da equipe.');
+            console.log('👤 Atendimento humano ativo. Ana não respondeu:', message.from);
+            return;
+        }
 
         if (pareceMensagemAdministrativa(msg)) {
             await registrarConversaLimpa(message, 'ADMIN/FORNECEDOR BLOQUEADO', msg);
