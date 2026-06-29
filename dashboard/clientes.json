@@ -28,8 +28,8 @@
     "pm2": "bot-pousada",
     "tipo": "Implantação",
     "cliente": "Pousada",
-     "monitorar": false,
+    "monitorar": false,
     "qrImage": "/root/bot-whatsapp-2vales/clientes/pousada/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/clientes/pousada/qrcode-status.json"
-  }
-]
+  },
+
