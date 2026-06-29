@@ -1,0 +1,16 @@
+{
+  "slug": "gaivotto-universal",
+  "nome": "Gaivotto Universal",
+  "subtitulo": "Assistente virtual • WhatsApp IA",
+  "pm2": "bot-gaivotto-universal",
+  "clientId": "gaivotto-universal",
+  "tipo": "Implantação",
+  "cliente": "Studio",
+  "monitorar": false,
+  "grupoInterno": "COLE_AQUI_O_ID_DO_GRUPO@g.us",
+  "qrImage": "/root/bot-whatsapp-2vales/clientes/gaivotto-universal/qrcode.png",
+  "qrStatus": "/root/bot-whatsapp-2vales/clientes/gaivotto-universal/qrcode-status.json",
+  "conversationLog": "/root/bot-whatsapp-2vales/clientes/gaivotto-universal/logs/conversas.log",
+  "leadsLog": "/root/bot-whatsapp-2vales/clientes/gaivotto-universal/logs/leads.log",
+  "controlFile": "/root/bot-whatsapp-2vales/clientes/gaivotto-universal/control.json"
+}
