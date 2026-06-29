@@ -1,0 +1,18 @@
+{
+  "slug": "cliente-modelo",
+  "nome": "Nome do Cliente",
+  "subtitulo": "Assistente virtual • WhatsApp IA",
+  "pm2": "bot-cliente-modelo",
+  "clientId": "cliente-modelo",
+  "tipo": "Produção",
+  "cliente": "Segmento do cliente",
+  "monitorar": true,
+
+  "grupoInterno": "COLE_AQUI_O_ID_DO_GRUPO@g.us",
+
+  "qrImage": "/root/bot-whatsapp-2vales/clientes/cliente-modelo/qrcode.png",
+  "qrStatus": "/root/bot-whatsapp-2vales/clientes/cliente-modelo/qrcode-status.json",
+  "conversationLog": "/root/bot-whatsapp-2vales/clientes/cliente-modelo/logs/conversas.log",
+  "leadsLog": "/root/bot-whatsapp-2vales/clientes/cliente-modelo/logs/leads.log",
+  "controlFile": "/root/bot-whatsapp-2vales/clientes/cliente-modelo/control.json"
+}

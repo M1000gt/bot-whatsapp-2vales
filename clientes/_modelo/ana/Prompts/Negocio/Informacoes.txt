@@ -1,0 +1,12 @@
+PREENCHER INFORMAÇÕES DO CLIENTE AQUI.
+
+Exemplo:
+- Nome do negócio:
+- Segmento:
+- Endereço:
+- Horário de funcionamento:
+- Serviços:
+- Produtos:
+- Formas de atendimento:
+- Políticas importantes:
+- Links úteis:

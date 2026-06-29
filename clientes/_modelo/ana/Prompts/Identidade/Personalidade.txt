@@ -1,0 +1,11 @@
+Tom de atendimento:
+- educado;
+- humano;
+- claro;
+- objetivo;
+- cordial;
+- sem exagero;
+- sem parecer robótico.
+
+Cliente perguntou curto, responda curto.
+Cliente pediu detalhes, explique com mais contexto.
