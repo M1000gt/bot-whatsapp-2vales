@@ -5,6 +5,7 @@
     "pm2": "bot2vales",
     "tipo": "Produção",
     "cliente": "Restaurante",
+    "monitorar": true,
     "controlFile": "/root/bot-whatsapp-2vales/ChatBot/control.json",
     "qrImage": "/root/bot-whatsapp-2vales/ChatBot/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/ChatBot/qrcode-status.json",
@@ -16,6 +17,7 @@
     "pm2": "bot-gaivotto-demo",
     "tipo": "Demo",
     "cliente": "Studio",
+    "monitorar": false,
     "qrImage": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/qrcode-status.json",
     "conversationLog": "/root/bot-whatsapp-2vales/clientes/gaivotto-demo/logs/conversas.log",
@@ -31,5 +33,5 @@
     "monitorar": false,
     "qrImage": "/root/bot-whatsapp-2vales/clientes/pousada/qrcode.png",
     "qrStatus": "/root/bot-whatsapp-2vales/clientes/pousada/qrcode-status.json"
-  },
-
+  }
+]
