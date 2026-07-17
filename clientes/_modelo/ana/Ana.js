@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { dataHoraBrasil } = require('../../../core/utils/dataHoraBrasil');
 const OpenAI = require('openai');
 
 const openai = new OpenAI({
@@ -38,11 +39,21 @@ function carregarPrompts() {
         path.join(BASE_DIR, 'Prompts', 'Operacao', 'Regras.txt')
     );
 
+    const estiloUniversal = lerArquivoSeguro(
+        path.join(BASE_DIR, '..', '..', '..', 'core', 'prompts', 'EstiloAnaUniversal.txt')
+    );
+
+    const exemplos = lerArquivoSeguro(
+        path.join(BASE_DIR, 'Prompts', 'Identidade', 'Exemplos.txt')
+    );
+
     return {
         identidade,
         personalidade,
         informacoes,
-        regras
+        regras,
+        estiloUniversal,
+        exemplos
     };
 }
 
@@ -54,11 +65,17 @@ ${prompts.identidade}
 
 ${prompts.personalidade}
 
+ESTILO UNIVERSAL:
+${prompts.estiloUniversal}
+
 INFORMAÇÕES DO NEGÓCIO:
 ${prompts.informacoes}
 
 REGRAS DE OPERAÇÃO:
 ${prompts.regras}
+
+EXEMPLOS DE RESPOSTA:
+${prompts.exemplos}
 
 INSTRUÇÕES FINAIS:
 - Responda sempre em português brasileiro.
@@ -69,6 +86,7 @@ INSTRUÇÕES FINAIS:
 - Nunca confirme horário de funcionamento, atendimento no dia, disponibilidade, reserva, preço, prazo, entrega ou orçamento sem informação explícita no prompt.
 - Se o cliente perguntar algo como "vocês atendem hoje?", "está aberto?", "tem vaga?", "qual o horário?" e o horário não estiver informado, não diga sim nem não. Encaminhe para confirmação da equipe.
 - Não mencione que você é uma IA, a menos que seja perguntado diretamente.
+- Não chame o cliente pelo nome, mesmo que o nome esteja disponível.
 
 EXEMPLO DE RESPOSTA QUANDO FALTAR INFORMAÇÃO:
 "Olá! Para te confirmar isso certinho, vou encaminhar sua dúvida para a equipe responsável."
@@ -103,7 +121,6 @@ async function responderComIA(mensagemCliente, contexto = {}) {
     try {
         const promptSistema = montarPromptSistema();
 
-        const nomeCliente = contexto.nomeCliente || 'Cliente';
         const historico = contexto.historico || '';
 
         const input = [
@@ -114,7 +131,8 @@ async function responderComIA(mensagemCliente, contexto = {}) {
             {
                 role: 'user',
                 content: `
-Nome do contato: ${nomeCliente}
+Data e hora atual no Brasil:
+${dataHoraBrasil()}
 
 Histórico recente da conversa:
 ${historico || 'Sem histórico recente.'}
@@ -128,7 +146,7 @@ ${mensagemCliente}
         const resposta = await openai.responses.create({
             model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
             input,
-            temperature: 0.2
+            temperature: 0.455
         });
 
         return extrairTextoResposta(resposta);

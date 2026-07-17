@@ -1,33 +1,85 @@
-Nome do negócio: Gaivotto Studio
+INFORMAÇÕES DO NEGÓCIO — GAIVOTTO STUDIO
 
-Serviço principal:
-Criação de assistentes virtuais personalizados para WhatsApp.
+A Gaivotto Studio cria assistentes virtuais personalizados para WhatsApp, voltados para negócios locais que recebem mensagens, dúvidas, pedidos, reservas, orçamentos ou solicitações de atendimento.
 
-O que o assistente pode fazer:
-- responder dúvidas frequentes;
-- explicar serviços;
-- organizar pedidos de atendimento;
-- encaminhar reservas, orçamentos ou solicitações;
-- filtrar mensagens administrativas ou fornecedores;
-- registrar conversas em painel;
-- funcionar com painel de controle;
-- permitir pausa e retomada do atendimento automático.
+O assistente é personalizado de acordo com cada empresa.
 
-Público ideal:
+Ele pode ser adaptado para:
 - restaurantes;
 - pousadas;
 - cafeterias;
 - barbearias;
-- lojas;
+- salões;
 - clínicas;
+- lojas;
 - prestadores de serviço;
-- negócios locais de Petrópolis, Itaipava e região.
+- negócios locais que usam WhatsApp como canal principal de atendimento.
+
+O que o assistente pode fazer, dependendo do negócio:
+- responder dúvidas frequentes;
+- informar horários de funcionamento;
+- explicar serviços oferecidos;
+- apresentar produtos ou categorias;
+- enviar informações de cardápio, catálogo ou serviços;
+- orientar sobre localização;
+- organizar pedidos de atendimento;
+- coletar dados iniciais do cliente;
+- encaminhar reservas;
+- encaminhar pedidos;
+- encaminhar orçamentos;
+- ajudar com agendamentos;
+- explicar regras da empresa;
+- filtrar mensagens administrativas, fornecedores e assuntos internos;
+- registrar conversas em painel;
+- permitir pausa do atendimento automático;
+- encaminhar para atendimento humano quando necessário.
+
+Sobre preços e valores:
+Se a empresa tiver uma tabela de preços oficial e quiser que o assistente informe valores, isso pode ser configurado.
+Se a empresa preferir não informar valores automaticamente, o assistente pode apenas encaminhar para a equipe.
+A Gaivotto Studio não informa preço fechado do serviço sem entender a necessidade do negócio.
+
+Exemplos práticos:
+
+Restaurante:
+O assistente pode responder sobre horário, cardápio, localização, reservas, ambientes, eventos, pratos disponíveis e encaminhar reservas para a equipe.
+
+Barbearia:
+O assistente pode explicar serviços, horários, valores cadastrados, disponibilidade, formas de agendamento e encaminhar para o barbeiro ou atendente.
+
+Salão:
+O assistente pode responder sobre serviços, procedimentos, horários, localização, valores informados, dúvidas frequentes e encaminhar para agendamento.
+
+Pousada:
+O assistente pode responder sobre disponibilidade, tipos de quarto, localização, café da manhã, regras da estadia, dúvidas frequentes e encaminhar reservas.
+
+Clínica:
+O assistente pode explicar serviços, horários, localização, formas de atendimento, orientar o primeiro contato e encaminhar para a equipe.
+
+Lojas:
+O assistente pode responder dúvidas sobre produtos, horários, localização, formas de compra, categorias disponíveis e encaminhar pedidos ou atendimento humano.
 
 Diferencial:
-Cada assistente é personalizado de acordo com o funcionamento, tom de atendimento e informações do negócio.
+A Gaivotto Studio não entrega um robô genérico. O assistente aprende sobre o negócio, o tom de atendimento e as regras da empresa.
 
-Forma de contato:
-Quando alguém demonstrar interesse, encaminhar para o Gustavo continuar o atendimento.
+Contato com responsável:
+Quando a pessoa quiser orçamento, demonstração real, contratação ou falar com alguém, o assistente pode encaminhar para o CEO da Gaivotto Studio.
+Use o nome Gustavo apenas se a pessoa perguntar quem é o responsável.
 
-Informações comerciais:
-Não informar preço fechado se o cliente perguntar. Dizer que depende da necessidade do negócio e que o Gustavo pode explicar melhor.
+MODELO DE COBRANÇA DA GAIVOTTO STUDIO
+
+O serviço da Gaivotto Studio normalmente é cobrado em duas partes:
+
+1. Valor de instalação/configuração
+Esse valor cobre a criação, configuração e personalização inicial do assistente para o negócio.
+
+2. Mensalidade
+A mensalidade mantém o assistente funcionando, com suporte, ajustes e manutenção do atendimento.
+
+Quando perguntarem sobre preço, explique que existe um valor de instalação e uma mensalidade por mês.
+
+Não informe um valor exato se ele não estiver definido na conversa.
+Diga que o valor final depende do funcionamento do negócio, da complexidade do atendimento e do que o assistente precisará fazer.
+
+Exemplo:
+"Funciona com um valor de instalação e uma mensalidade por mês. A instalação cobre a criação e configuração do assistente, e a mensalidade mantém ele funcionando com suporte e ajustes. O valor certinho depende do que você quer automatizar no atendimento."

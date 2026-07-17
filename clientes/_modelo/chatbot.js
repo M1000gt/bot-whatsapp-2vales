@@ -30,6 +30,41 @@ function carregarConfig() {
 
 const config = carregarConfig();
 
+
+const historicosConversas = new Map();
+const LIMITE_HISTORICO_CONVERSA = 8;
+
+function adicionarHistorico(chatId, papel, texto) {
+    if (!chatId || !texto) return;
+
+    const lista = historicosConversas.get(chatId) || [];
+
+    lista.push({
+        papel,
+        texto: String(texto).slice(0, 800),
+        data: new Date().toISOString()
+    });
+
+    while (lista.length > LIMITE_HISTORICO_CONVERSA) {
+        lista.shift();
+    }
+
+    historicosConversas.set(chatId, lista);
+}
+
+function obterHistorico(chatId) {
+    const lista = historicosConversas.get(chatId) || [];
+
+    if (!lista.length) {
+        return 'Sem histórico recente.';
+    }
+
+    return lista
+        .map(item => `${item.papel}: ${item.texto}`)
+        .join('\n');
+}
+
+
 const logsDir = path.join(__dirname, 'logs');
 const conversaLogPath = path.join(logsDir, 'conversas.log');
 
@@ -120,6 +155,119 @@ async function enviarAvisoInterno(texto) {
         console.error('Erro ao enviar aviso interno:', error.message);
     }
 }
+
+
+
+
+
+
+
+function esperar(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function calcularTempoDigitando(texto) {
+    const tamanho = String(texto || '').length;
+    const tempo = 900 + tamanho * 8;
+
+    return Math.min(Math.max(tempo, 1200), 2800);
+}
+
+async function tentarEnviarDigitando(chatId) {
+    let ultimoErro = null;
+
+    try {
+        if (typeof client.sendPresenceAvailable === 'function') {
+            await client.sendPresenceAvailable();
+        }
+    } catch (_) {}
+
+    try {
+        const chat = await client.getChatById(chatId);
+
+        if (chat && typeof chat.sendStateTyping === 'function') {
+            await chat.sendStateTyping();
+            return {
+                ok: true,
+                metodo: 'chat.sendStateTyping'
+            };
+        }
+    } catch (error) {
+        ultimoErro = error;
+    }
+
+    try {
+        if (client.pupPage) {
+            const resultado = await client.pupPage.evaluate((id) => {
+                if (window.WWebJS && typeof window.WWebJS.sendChatstate === 'function') {
+                    window.WWebJS.sendChatstate('typing', id);
+                    return true;
+                }
+
+                return false;
+            }, chatId);
+
+            if (resultado) {
+                return {
+                    ok: true,
+                    metodo: 'window.WWebJS.sendChatstate'
+                };
+            }
+        }
+    } catch (error) {
+        ultimoErro = error;
+    }
+
+    return {
+        ok: false,
+        erro: ultimoErro ? (ultimoErro.stack || ultimoErro.message || String(ultimoErro)) : 'sem detalhe'
+    };
+}
+
+async function iniciarDigitando(message) {
+    const chatId = message.from;
+    let intervalo = null;
+    let ativo = true;
+
+    const primeiraTentativa = await tentarEnviarDigitando(chatId);
+
+    if (primeiraTentativa.ok) {
+        console.log(`⌨️ Digitando iniciado para ${chatId} via ${primeiraTentativa.metodo}`);
+
+        intervalo = setInterval(async () => {
+            if (!ativo) return;
+
+            const novaTentativa = await tentarEnviarDigitando(chatId);
+
+            if (novaTentativa.ok) {
+                console.log(`⌨️ Digitando renovado para ${chatId} via ${novaTentativa.metodo}`);
+            } else {
+                console.log(`⚠️ Não consegui renovar digitando para ${chatId}: ${novaTentativa.erro}`);
+            }
+        }, 7000);
+    } else {
+        console.log(`⚠️ Não consegui iniciar digitando para ${chatId}: ${primeiraTentativa.erro}`);
+    }
+
+    return async function pararDigitando() {
+        ativo = false;
+
+        if (intervalo) {
+            clearInterval(intervalo);
+        }
+
+        try {
+            const chat = await client.getChatById(chatId);
+
+            if (chat && typeof chat.clearState === 'function') {
+                await chat.clearState();
+            }
+        } catch (_) {}
+
+        console.log('⌨️ Digitando finalizado para:', chatId);
+    };
+}
+
 
 async function obterContatoSeguro(message) {
     try {
@@ -219,12 +367,24 @@ client.on('message', async (message) => {
         }
 
         const contato = await obterContatoSeguro(message);
+        contato.historico = obterHistorico(message.from);
 
-        const resultado = await processarMensagemCliente({
-            texto: textoCliente,
-            contato,
-            responderComIA
-        });
+        adicionarHistorico(message.from, 'CLIENTE', textoCliente);
+
+        const pararDigitando = await iniciarDigitando(message);
+
+        let resultado;
+
+        try {
+            resultado = await processarMensagemCliente({
+                texto: textoCliente,
+                contato,
+                responderComIA
+            });
+        } catch (error) {
+            await pararDigitando();
+            throw error;
+        }
 
         if (resultado.avisoInterno) {
             await enviarAvisoInterno(resultado.avisoInterno);
@@ -232,12 +392,16 @@ client.on('message', async (message) => {
         }
 
         if (!resultado.deveResponderCliente) {
+            await pararDigitando();
             console.log(`🚫 Mensagem não respondida ao cliente. Tipo: ${resultado.tipo}`);
             return;
         }
 
         if (resultado.respostaCliente) {
+            await esperar(calcularTempoDigitando(resultado.respostaCliente));
             await client.sendMessage(message.from, resultado.respostaCliente);
+            await pararDigitando();
+            adicionarHistorico(message.from, 'ASSISTENTE', resultado.respostaCliente);
             await registrarConversaLimpa(message, 'ASSISTENTE', resultado.respostaCliente);
         }
     } catch (error) {
