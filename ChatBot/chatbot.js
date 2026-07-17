@@ -208,26 +208,76 @@ Mensagem: ${textoSeguro}
 // ========================================
 
 function pareceMensagemAdministrativa(texto = '') {
-    const t = String(texto).toLowerCase();
+    const msgOriginal = String(texto || '').trim();
 
-    const padroes = [
-        /promo[cç][aã]o\s+de\s+(carne|carnes|bebida|bebidas|heineken|cerveja|vinho|frango|peixe|pescado)/i,
-        /(carne|bebida|heineken|cerveja|vinho|frango|peixe|pescado).*(promo[cç][aã]o|semana|entrega|fornecedor|or[cç]amento)/i,
-        /fornecedor/i,
-        /contador|contabilidade|fiscal|imposto/i,
-        /nota\s*fiscal|nf-e|nfe|danfe|xml/i,
-        /boleto|cobran[cç]a|pagamento|pix/i,
-        /certificado|\.pfx|senha/i,
-        /mercadoria|produto\s+para\s+venda|or[cç]amento/i,
-        /entrego|entrega|entregar|retirada/i,
-        /vamos\s+precisar/i,
-        /precisam\s+de\s+mais\s+alguma\s+coisa/i,
-        /as\s+notinhas/i,
-        /total\s+r?\$?\s*\d+/i,
-        /segue\s+(arquivo|nota|boleto|certificado|xml|danfe)/i
+    const msg = msgOriginal
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    // CLIENTE / DELIVERY
+    // Pedido, entrega e delivery podem ser cliente querendo comprar.
+    // Essas palavras sozinhas NÃO podem bloquear a Ana.
+    const pareceClienteDelivery =
+        /\b(delivery|entrega|entregar|entregam|pedido para entrega|pedido pra entrega|fazer um pedido|fazer pedido|quero pedir|queria pedir|posso pedir|posso fazer um pedido|pedido para entregar|pedido pra entregar|entregar aqui|entrega aqui|boa esperanca|cuiaba|viagem)\b/i.test(msg);
+
+    // FORNECEDOR / ADMINISTRATIVO CLARO
+    // Aqui precisam existir sinais fortes de assunto interno, venda para o restaurante,
+    // nota, boleto, cobrança, fornecedor, representante, tabela de fornecedor etc.
+    const padroesAdministrativos = [
+        /\bfornecedor\b/i,
+        /\brepresentante\b/i,
+        /\bdistribuidor\b/i,
+        /\bsou fornecedor\b/i,
+        /\bsou representante\b/i,
+        /\bnota fiscal\b/i,
+        /\bnf\b/i,
+        /\bboleto\b/i,
+        /\bcobranca\b/i,
+        /\bcobrança\b/i,
+        /\bpagamento\b/i,
+        /\bcertificado\b/i,
+        /\bsenha\b/i,
+        /\bdocumento\b/i,
+        /\bcontrato\b/i,
+        /\bmercadoria\b/i,
+        /\bcotacao\b/i,
+        /\bcotação\b/i,
+        /\borcamento para voces\b/i,
+        /\borçamento para vocês\b/i,
+        /\bproduto para vender\b/i,
+        /\bproduto pra vender\b/i,
+        /\bvender para voces\b/i,
+        /\bvender pra voces\b/i,
+        /\bvender para vocês\b/i,
+        /\bposso mandar tabela\b/i,
+        /\btabela de preco\b/i,
+        /\btabela de preço\b/i,
+        /\btabela para voces\b/i,
+        /\btabela para vocês\b/i,
+        /\bpromocao de carne\b/i,
+        /\bpromoção de carne\b/i,
+        /\bpromocao de frango\b/i,
+        /\bpromoção de frango\b/i,
+        /\bpromocao de bebida\b/i,
+        /\bpromoção de bebida\b/i,
+        /\bpromocao de cerveja\b/i,
+        /\bpromoção de cerveja\b/i,
+        /\bpromocao de vinho\b/i,
+        /\bpromoção de vinho\b/i,
+        /\bentrega de mercadoria\b/i,
+        /\bretirada de mercadoria\b/i
     ];
 
-    return padroes.some(regex => regex.test(t));
+    const administrativoClaro = padroesAdministrativos.some(regex => regex.test(msgOriginal) || regex.test(msg));
+
+    // Se for cliente falando de delivery, deixa a Ana responder,
+    // exceto se também tiver sinais claros de fornecedor/admin.
+    if (pareceClienteDelivery && !administrativoClaro) {
+        return false;
+    }
+
+    return administrativoClaro;
 }
 
 async function notificarAdministrativo(message, texto) {
@@ -268,48 +318,101 @@ A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsáv
 // SIMULAR DIGITAÇÃO
 // ========================================
 
-async function iniciarDigitando(message) {
-    let chat = null;
-    let intervalo = null;
-    let timeout = null;
-    let parado = false;
+async function tentarEnviarDigitando(chatId) {
+    let ultimoErro = null;
 
     try {
-        chat = await message.getChat();
+        if (typeof client.sendPresenceAvailable === 'function') {
+            await client.sendPresenceAvailable();
+        }
+    } catch (_) {}
 
-        await chat.sendStateTyping();
+    try {
+        const chat = await client.getChatById(chatId);
+
+        if (chat && typeof chat.sendStateTyping === 'function') {
+            await chat.sendStateTyping();
+            return {
+                ok: true,
+                metodo: 'chat.sendStateTyping'
+            };
+        }
+    } catch (error) {
+        ultimoErro = error;
+    }
+
+    try {
+        if (client.pupPage) {
+            const resultado = await client.pupPage.evaluate((id) => {
+                if (window.WWebJS && typeof window.WWebJS.sendChatstate === 'function') {
+                    window.WWebJS.sendChatstate('typing', id);
+                    return true;
+                }
+
+                return false;
+            }, chatId);
+
+            if (resultado) {
+                return {
+                    ok: true,
+                    metodo: 'window.WWebJS.sendChatstate'
+                };
+            }
+        }
+    } catch (error) {
+        ultimoErro = error;
+    }
+
+    return {
+        ok: false,
+        erro: ultimoErro ? (ultimoErro.stack || ultimoErro.message || String(ultimoErro)) : 'sem detalhe'
+    };
+}
+
+async function iniciarDigitando(message) {
+    const chatId = message.from;
+    let intervalo = null;
+    let parado = false;
+
+    const primeiraTentativa = await tentarEnviarDigitando(chatId);
+
+    if (primeiraTentativa.ok) {
+        console.log(`⌨️ Digitando iniciado para ${chatId} via ${primeiraTentativa.metodo}`);
 
         intervalo = setInterval(async () => {
-            try {
-                if (!parado && chat) {
-                    await chat.sendStateTyping();
-                }
-            } catch {}
-        }, 7000);
-
-        timeout = setTimeout(async () => {
-            await pararDigitando();
-        }, 60000);
-
-        async function pararDigitando() {
             if (parado) return;
 
-            parado = true;
+            const novaTentativa = await tentarEnviarDigitando(chatId);
 
-            if (intervalo) clearInterval(intervalo);
-            if (timeout) clearTimeout(timeout);
+            if (novaTentativa.ok) {
+                console.log(`⌨️ Digitando renovado para ${chatId} via ${novaTentativa.metodo}`);
+            } else {
+                console.log(`⚠️ Não consegui renovar digitando para ${chatId}: ${novaTentativa.erro}`);
+            }
+        }, 7000);
+    } else {
+        console.log(`⚠️ Não consegui iniciar digitando para ${chatId}: ${primeiraTentativa.erro}`);
+    }
 
-            try {
-                if (chat) {
-                    await chat.clearState();
-                }
-            } catch {}
+    return async function pararDigitando() {
+        if (parado) return;
+
+        parado = true;
+
+        if (intervalo) {
+            clearInterval(intervalo);
         }
 
-        return pararDigitando;
-    } catch {
-        return async () => {};
-    }
+        try {
+            const chat = await client.getChatById(chatId);
+
+            if (chat && typeof chat.clearState === 'function') {
+                await chat.clearState();
+            }
+        } catch (_) {}
+
+        console.log('⌨️ Digitando finalizado para:', chatId);
+    };
 }
 
 
@@ -327,6 +430,118 @@ function getMediaCardapio() {
     }
 
     return mediaCardapioCache;
+}
+
+
+
+// ========================================
+// DELIVERY — CONTEXTO E AVISO AO GRUPO
+// ========================================
+
+const contextosDeliveryAtivos = new Map();
+const avisosDeliveryRecentes = new Map();
+
+function normalizarTextoDelivery(texto = '') {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function textoIniciaDelivery(texto = '') {
+    const msg = normalizarTextoDelivery(texto);
+
+    return /\b(delivery|entrega|entregar|para entrega|pra entrega|pedido para entrega|pedido pra entrega|pedido para entregar|pedido pra entregar|para viagem|pra viagem|fazer um pedido|fazer pedido)\b/i.test(msg);
+}
+
+function textoTemItensDePedido(texto = '') {
+    const msg = normalizarTextoDelivery(texto);
+
+    return /\b(file|filet|framboises|naranjita|roesti|batata|arroz|pure|puree|massa|prato|acompanhamento|quantidade|dividido|ao ponto|mal passado|bem passado|ossobuco|polpetone|salmao|peixe|carne)\b/i.test(msg);
+}
+
+function marcarContextoDelivery(chatId) {
+    contextosDeliveryAtivos.set(chatId, Date.now());
+
+    setTimeout(() => {
+        const marcadoEm = contextosDeliveryAtivos.get(chatId);
+        if (marcadoEm && Date.now() - marcadoEm >= 15 * 60 * 1000) {
+            contextosDeliveryAtivos.delete(chatId);
+        }
+    }, 15 * 60 * 1000);
+}
+
+function contextoDeliveryAtivo(chatId) {
+    const marcadoEm = contextosDeliveryAtivos.get(chatId);
+    if (!marcadoEm) return false;
+
+    if (Date.now() - marcadoEm > 15 * 60 * 1000) {
+        contextosDeliveryAtivos.delete(chatId);
+        return false;
+    }
+
+    return true;
+}
+
+function limparMarcadoresInternosAna(texto = '') {
+    return String(texto || '')
+        .replace(/\[\[PEDIDO_DELIVERY\]\]/g, '')
+        .trim();
+}
+
+async function notificarPedidoDelivery(message, textoCliente, respostaAna) {
+    try {
+        const chave = `${message.from}:${textoCliente}`.slice(0, 500);
+
+        if (avisosDeliveryRecentes.has(chave)) {
+            console.log('🛵 Aviso delivery duplicado ignorado:', message.from);
+            return;
+        }
+
+        avisosDeliveryRecentes.set(chave, Date.now());
+
+        setTimeout(() => {
+            avisosDeliveryRecentes.delete(chave);
+        }, 60 * 1000);
+
+        const contato = await message.getContact();
+        const nome = contato.pushname || contato.name || 'Cliente';
+
+        const aviso = `🛵 NOVO PEDIDO DELIVERY — 2VALES
+
+👤 Cliente:
+${nome}
+
+📱 Contato/ID:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+Mensagem recebida:
+${textoCliente}
+
+━━━━━━━━━━━━━━━
+
+Resumo da Ana:
+${respostaAna}
+
+━━━━━━━━━━━━━━━
+
+⚠️ A equipe deve confirmar:
+- disponibilidade do prato;
+- taxa de entrega;
+- tempo de entrega;
+- localidade/área;
+- forma de pagamento;
+- fechamento do pedido.`;
+
+        await client.sendMessage(grupoReservas, aviso);
+        console.log('🛵 Pedido delivery enviado ao grupo:', message.from);
+
+        contextosDeliveryAtivos.delete(message.from);
+    } catch (error) {
+        console.error('Erro ao notificar pedido delivery:', error.message);
+    }
 }
 
 
@@ -357,6 +572,10 @@ client.on('message', async (message) => {
       ) return;
 
         const msg = message.body.toLowerCase().trim();
+
+          if (textoIniciaDelivery(message.body)) {
+              marcarContextoDelivery(message.from);
+          }
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
 
@@ -419,6 +638,21 @@ client.on('message', async (message) => {
         // ========================================
 
         if (respostaAna) {
+            const tinhaMarcadorDelivery = respostaAna.includes('[[PEDIDO_DELIVERY]]');
+            respostaAna = limparMarcadoresInternosAna(respostaAna);
+
+            const deveNotificarDelivery =
+                tinhaMarcadorDelivery ||
+                (
+                    contextoDeliveryAtivo(message.from) &&
+                    textoTemItensDePedido(message.body || '') &&
+                    /(encaminh|confirm|pedido|delivery|entrega|equipe)/i.test(respostaAna)
+                );
+
+            if (deveNotificarDelivery) {
+                await notificarPedidoDelivery(message, message.body.trim(), respostaAna);
+            }
+
             await registrarConversaLimpa(message, 'ANA', respostaAna);
             await enviar(
                 client,
