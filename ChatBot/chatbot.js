@@ -545,6 +545,40 @@ ${respostaAna}
 }
 
 
+
+// ========================================
+// HANDOFF DE TESTE / MANUAL POR CONVERSA
+// ========================================
+
+const handoffTesteConversas = new Map();
+const TEMPO_HANDOFF_TESTE_MS = 30 * 60 * 1000;
+
+function ativarHandoffTeste(chatId, minutos = 30) {
+    const expiraEm = Date.now() + minutos * 60 * 1000;
+    handoffTesteConversas.set(chatId, expiraEm);
+    console.log(`🧪 Handoff de teste ativado para ${chatId} por ${minutos} minutos.`);
+}
+
+function desativarHandoffTeste(chatId) {
+    handoffTesteConversas.delete(chatId);
+    console.log(`🧪 Handoff de teste desativado para ${chatId}.`);
+}
+
+function handoffTesteAtivo(chatId) {
+    const expiraEm = handoffTesteConversas.get(chatId);
+
+    if (!expiraEm) return false;
+
+    if (Date.now() > expiraEm) {
+        handoffTesteConversas.delete(chatId);
+        console.log(`✅ Handoff de teste expirou para ${chatId}.`);
+        return false;
+    }
+
+    return true;
+}
+
+
 client.on('message', async (message) => {
         if (message.fromMe) return;
         if (!message.from) return;
@@ -573,13 +607,25 @@ client.on('message', async (message) => {
 
         const msg = message.body.toLowerCase().trim();
 
+          if (msg === '#teste-handoff') {
+              ativarHandoffTeste(message.from, 30);
+              await registrarConversaLimpa(message, 'SISTEMA', 'Handoff de teste ativado por comando secreto.');
+              return;
+          }
+
+          if (msg === '#fim-handoff') {
+              desativarHandoffTeste(message.from);
+              await registrarConversaLimpa(message, 'SISTEMA', 'Handoff de teste desativado por comando secreto.');
+              return;
+          }
+
           if (textoIniciaDelivery(message.body)) {
               marcarContextoDelivery(message.from);
           }
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
 
-        if (atendimentoHumanoAtivo(message.from)) {
+        if (atendimentoHumanoAtivo(message.from) || handoffTesteAtivo(message.from)) {
             await registrarConversaLimpa(message, 'SISTEMA', 'Atendimento humano ativo nesta conversa. Ana não respondeu para não falar por cima da equipe.');
             console.log('👤 Atendimento humano ativo. Ana não respondeu:', message.from);
             return;
