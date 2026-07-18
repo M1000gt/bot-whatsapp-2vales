@@ -579,6 +579,133 @@ function handoffTesteAtivo(chatId) {
 }
 
 
+
+// ========================================
+// HANDOFF AUTOMÁTICO POR RESPOSTA HUMANA
+// ========================================
+
+const handoffAutomaticoConversas = new Map();
+const handoffMensagensBotIds = new Set();
+const handoffMensagensBotRecentes = new Map();
+const TEMPO_HANDOFF_AUTOMATICO_MS = 30 * 60 * 1000;
+
+function handoffNormalizarConteudo(conteudo) {
+    if (typeof conteudo === 'string') {
+        return conteudo.trim().slice(0, 1000);
+    }
+
+    return '[MIDIA_OU_CONTEUDO_NAO_TEXTO]';
+}
+
+function handoffChaveMensagem(chatId, conteudo) {
+    return `${chatId}|${handoffNormalizarConteudo(conteudo)}`;
+}
+
+// Marca mensagens enviadas pelo próprio BOT, para não confundir com atendente humano.
+if (!client.__sendMessageOriginalHandoff) {
+    client.__sendMessageOriginalHandoff = client.sendMessage.bind(client);
+
+    client.sendMessage = async function(chatId, conteudo, options) {
+        const chave = handoffChaveMensagem(chatId, conteudo);
+
+        handoffMensagensBotRecentes.set(chave, Date.now());
+
+        setTimeout(() => {
+            handoffMensagensBotRecentes.delete(chave);
+        }, 30000);
+
+        const mensagemEnviada = await client.__sendMessageOriginalHandoff(chatId, conteudo, options);
+
+        try {
+            if (mensagemEnviada && mensagemEnviada.id && mensagemEnviada.id._serialized) {
+                handoffMensagensBotIds.add(mensagemEnviada.id._serialized);
+
+                setTimeout(() => {
+                    handoffMensagensBotIds.delete(mensagemEnviada.id._serialized);
+                }, 5 * 60 * 1000);
+            }
+        } catch (_) {}
+
+        return mensagemEnviada;
+    };
+}
+
+function mensagemFoiEnviadaPeloBot(message) {
+    try {
+        if (message && message.id && message.id._serialized && handoffMensagensBotIds.has(message.id._serialized)) {
+            return true;
+        }
+
+        const chatId = message.to || message.from;
+        const chave = handoffChaveMensagem(chatId, message.body || '');
+
+        return handoffMensagensBotRecentes.has(chave);
+    } catch (_) {
+        return false;
+    }
+}
+
+function registrarHandoffAutomatico(chatId) {
+    if (!chatId) return;
+
+    const expiraEm = Date.now() + TEMPO_HANDOFF_AUTOMATICO_MS;
+
+    handoffAutomaticoConversas.set(chatId, expiraEm);
+
+    console.log(`👤 Handoff automático ativado para ${chatId} por 30 minutos.`);
+}
+
+function handoffAutomaticoAtivo(chatId) {
+    const expiraEm = handoffAutomaticoConversas.get(chatId);
+
+    if (!expiraEm) return false;
+
+    if (Date.now() > expiraEm) {
+        handoffAutomaticoConversas.delete(chatId);
+        console.log(`✅ Handoff automático expirou para ${chatId}.`);
+        return false;
+    }
+
+    return true;
+}
+
+// Detecta mensagem enviada manualmente pelo WhatsApp da empresa.
+// Mensagens enviadas pelo próprio bot são ignoradas.
+client.on('message_create', async (message) => {
+    try {
+        if (!message.fromMe) return;
+
+        const chatId = message.to;
+
+        if (!chatId) return;
+        if (chatId === 'status@broadcast') return;
+        if (chatId.endsWith('@g.us')) return;
+        if (chatId.endsWith('@newsletter')) return;
+
+        if (
+            !chatId.endsWith('@c.us') &&
+            !chatId.endsWith('@lid')
+        ) return;
+
+        if (mensagemFoiEnviadaPeloBot(message)) {
+            return;
+        }
+
+        registrarHandoffAutomatico(chatId);
+
+        try {
+            await registrarConversaLimpa(
+                { ...message, from: chatId },
+                'ATENDENTE HUMANO',
+                message.body || '[mensagem sem texto / mídia]'
+            );
+        } catch (_) {}
+    } catch (error) {
+        console.error('Erro no handoff automático:', error.message);
+    }
+});
+
+
 client.on('message', async (message) => {
         if (message.fromMe) return;
         if (!message.from) return;
@@ -625,7 +752,7 @@ client.on('message', async (message) => {
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
 
-        if (atendimentoHumanoAtivo(message.from) || handoffTesteAtivo(message.from)) {
+        if (atendimentoHumanoAtivo(message.from) || handoffTesteAtivo(message.from) || handoffAutomaticoAtivo(message.from)) {
             await registrarConversaLimpa(message, 'SISTEMA', 'Atendimento humano ativo nesta conversa. Ana não respondeu para não falar por cima da equipe.');
             console.log('👤 Atendimento humano ativo. Ana não respondeu:', message.from);
             return;
