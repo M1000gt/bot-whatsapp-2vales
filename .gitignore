@@ -53,3 +53,6 @@ ChatBot/handoff-humano.json
 # Sessão e cache do WhatsApp Web
 ChatBot/.wwebjs_auth/
 ChatBot/.wwebjs_cache/
+
+# Estado temporário do handoff
+clientes/gaivotto-universal/handoff-humano.json
