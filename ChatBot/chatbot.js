@@ -637,7 +637,14 @@ function mensagemFoiEnviadaPeloBot(message) {
         }
 
         const chatId = message.to || message.from;
-        const chave = handoffChaveMensagem(chatId, message.body || '');
+
+        // Mídias enviadas pelo bot são registradas com um marcador genérico.
+        // Por isso, na comparação, não usamos o body/nome do arquivo.
+        const conteudoParaComparar = message.hasMedia
+            ? null
+            : (message.body || '');
+
+        const chave = handoffChaveMensagem(chatId, conteudoParaComparar);
 
         return handoffMensagensBotRecentes.has(chave);
     } catch (_) {
@@ -688,6 +695,10 @@ client.on('message_create', async (message) => {
         ) return;
 
         if (mensagemFoiEnviadaPeloBot(message)) {
+            console.log(
+                `🤖 Envio automático ignorado pelo handoff: ${chatId}` +
+                (message.hasMedia ? ' [mídia]' : '')
+            );
             return;
         }
 
