@@ -56,3 +56,5 @@ ChatBot/.wwebjs_cache/
 
 # Estado temporário do handoff
 clientes/gaivotto-universal/handoff-humano.json
+**/.wwebjs_auth/
+**/.wwebjs_cache/
