@@ -49,3 +49,7 @@ clientes/**/.wwebjs_cache/
 ChatBot/control.json
 *.save
 ChatBot/handoff-humano.json
+
+# Sessão e cache do WhatsApp Web
+ChatBot/.wwebjs_auth/
+ChatBot/.wwebjs_cache/
