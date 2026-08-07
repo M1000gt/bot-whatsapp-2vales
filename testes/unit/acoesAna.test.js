@@ -66,3 +66,18 @@ test('remove marcador mesmo se o modelo alterar maiúsculas e minúsculas', () =
     assert.equal(resultado.textoCliente, 'Vou chamar a equipe.');
     assert.equal(resultado.acoes.chamarAtendente, true);
 });
+
+test('interpreta marcadores de oferta e confirmação com a equipe', () => {
+    const oferta = interpretarRespostaAna(
+        'Não tenho essa informação confirmada. Posso consultar? [[OFERECER_CONFIRMACAO_EQUIPE]]'
+    );
+    const confirmacao = interpretarRespostaAna(
+        'Vou encaminhar sua dúvida. [[CONFIRMAR_COM_EQUIPE]]'
+    );
+
+    assert.equal(oferta.acoes.oferecerConfirmacaoEquipe, true);
+    assert.equal(oferta.acoes.confirmarComEquipe, false);
+    assert.doesNotMatch(oferta.textoCliente, /OFERECER_CONFIRMACAO/);
+    assert.equal(confirmacao.acoes.confirmarComEquipe, true);
+    assert.doesNotMatch(confirmacao.textoCliente, /CONFIRMAR_COM_EQUIPE/);
+});

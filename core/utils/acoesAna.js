@@ -2,7 +2,9 @@ const MARCADORES_SIMPLES = {
     enviarCardapio: '[[ENVIAR_CARDAPIO]]',
     enviarLocalizacao: '[[ENVIAR_LOCALIZACAO]]',
     chamarAtendente: '[[CHAMAR_ATENDENTE]]',
-    pedidoDelivery: '[[PEDIDO_DELIVERY]]'
+    pedidoDelivery: '[[PEDIDO_DELIVERY]]',
+    oferecerConfirmacaoEquipe: '[[OFERECER_CONFIRMACAO_EQUIPE]]',
+    confirmarComEquipe: '[[CONFIRMAR_COM_EQUIPE]]'
 };
 
 const REGEX_RESERVA = /\[\[RESERVA_COMPLETA\]\]([\s\S]*?)\[\[\/RESERVA_COMPLETA\]\]/i;
@@ -60,6 +62,8 @@ function interpretarRespostaAna(respostaOriginal) {
         enviarLocalizacao: respostaNormalizada.includes(MARCADORES_SIMPLES.enviarLocalizacao),
         chamarAtendente: respostaNormalizada.includes(MARCADORES_SIMPLES.chamarAtendente),
         pedidoDelivery: respostaNormalizada.includes(MARCADORES_SIMPLES.pedidoDelivery),
+        oferecerConfirmacaoEquipe: respostaNormalizada.includes(MARCADORES_SIMPLES.oferecerConfirmacaoEquipe),
+        confirmarComEquipe: respostaNormalizada.includes(MARCADORES_SIMPLES.confirmarComEquipe),
         reservaCompleta: reservaValida,
         dadosReserva: reservaValida ? blocoReserva : null
     };

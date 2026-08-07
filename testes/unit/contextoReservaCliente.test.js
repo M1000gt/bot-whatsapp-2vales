@@ -3,9 +3,12 @@ const assert = require('node:assert/strict');
 
 const {
     criarContextoReservaCliente,
+    criarRespostaDataReservaInvalida,
     detectarAmbiente,
+    detectarDataReserva,
     detectarDataPorDiaSemana,
-    detectarIntencaoPet
+    detectarIntencaoPet,
+    validarDataResolvidaParaReserva
 } = require('../../core/utils/contextoReservaCliente');
 
 const reservaInterpretadaErrado = `Nome: Gustavo Teste
@@ -78,4 +81,41 @@ test('guarda a próxima quinta-feira e corrige data passada no bloco e na respos
     assert.match(resultado.dadosReserva, /Data: 13\/08\/2026 \(quinta-feira\)/);
     assert.equal(resultado.alterado, true);
     assert.equal(resposta, 'Sua reserva para 13/08/2026 será encaminhada.');
+});
+
+test('bloqueia reserva com data passada antes do aviso ao grupo', () => {
+    const contexto = criarContextoReservaCliente();
+    const sexta = new Date('2026-08-07T22:00:00.000Z').getTime();
+
+    contexto.atualizar('cliente-4', 'quero reservar para 06/08/2026', sexta);
+    const resultado = contexto.reconciliar('cliente-4', reservaInterpretadaErrado, sexta + 1000);
+
+    assert.equal(resultado.validacaoData.aceita, false);
+    assert.equal(resultado.validacaoData.motivo, 'data-passada');
+    assert.match(
+        criarRespostaDataReservaInvalida(resultado.validacaoData),
+        /data já passou/i
+    );
+});
+
+test('bloqueia reserva em dia fechado e informa a data exata', () => {
+    const contexto = criarContextoReservaCliente();
+    const sexta = new Date('2026-08-07T22:00:00.000Z').getTime();
+
+    contexto.atualizar('cliente-5', 'quero reservar para segunda-feira', sexta);
+    const resultado = contexto.reconciliar('cliente-5', reservaInterpretadaErrado, sexta + 1000);
+    const resposta = criarRespostaDataReservaInvalida(resultado.validacaoData);
+
+    assert.equal(resultado.validacaoData.aceita, false);
+    assert.equal(resultado.validacaoData.motivo, 'restaurante-fechado');
+    assert.match(resposta, /10\/08\/2026 \(segunda-feira\)/);
+});
+
+test('validação imediata barra data inexistente sem depender do bloco da IA', () => {
+    const sexta = new Date('2026-08-07T22:00:00.000Z');
+    const data = detectarDataReserva('reserva para 31/02/2027', sexta);
+    const validacao = validarDataResolvidaParaReserva(data);
+
+    assert.equal(validacao.aceita, false);
+    assert.equal(validacao.motivo, 'data-inexistente');
 });

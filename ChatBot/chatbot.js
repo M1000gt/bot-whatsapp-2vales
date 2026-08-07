@@ -17,7 +17,12 @@ const { classificarMensagem2Vales } = require('../core/utils/classificador2Vales
 const { criarFilaPorChave } = require('../core/utils/filaPorChave');
 const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
 const { mensagemAutorizaEnvioCardapio } = require('../core/utils/intencaoCardapio');
-const { criarContextoReservaCliente } = require('../core/utils/contextoReservaCliente');
+const { criarControleConfirmacaoEquipe } = require('../core/utils/confirmacaoEquipe');
+const {
+    criarContextoReservaCliente,
+    criarRespostaDataReservaInvalida,
+    validarDataResolvidaParaReserva
+} = require('../core/utils/contextoReservaCliente');
 const {
     criarControleEncaminhamentoReserva,
     criarRespostaCortesiaReserva,
@@ -104,6 +109,7 @@ const boasVindas = [
 const filaMensagens = criarFilaPorChave();
 const contextoReservaCliente = criarContextoReservaCliente();
 const controleEncaminhamentoReserva = criarControleEncaminhamentoReserva();
+const controleConfirmacaoEquipe = criarControleConfirmacaoEquipe();
 // ========================================
 
 // QR CODE
@@ -250,6 +256,29 @@ A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsáv
         console.error('Erro ao notificar administrativo:', error.message);
         throw error;
     }
+}
+
+async function notificarDuvidaParaEquipe(message, perguntaOriginal) {
+    await enviar(
+        client,
+        grupoReservas,
+`❓ CLIENTE PEDIU CONFIRMAÇÃO DE UMA INFORMAÇÃO
+
+👤 Cliente:
+${message._data?.notifyName || 'Não informado'}
+
+📱 Número:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+Pergunta original:
+${perguntaOriginal}
+
+━━━━━━━━━━━━━━━
+
+O cliente pediu que a equipe confirme essa informação pelo WhatsApp.`
+    );
 }
 
 
@@ -663,7 +692,10 @@ async function processarMensagemRecebida(message) {
       ) return;
 
         const msg = message.body.toLowerCase().trim();
-        contextoReservaCliente.atualizar(message.from, message.body);
+        const contextoReservaAtualizado = contextoReservaCliente.atualizar(
+            message.from,
+            message.body
+        );
 
           if (textoIniciaDelivery(message.body)) {
               marcarContextoDelivery(message.from);
@@ -680,6 +712,58 @@ async function processarMensagemRecebida(message) {
         if (pareceMensagemAdministrativa(msg)) {
             await registrarConversaLimpa(message, 'ADMIN/FORNECEDOR BLOQUEADO', msg);
             await notificarAdministrativo(message, msg);
+            return;
+        }
+
+        if (/\breserv/i.test(msg) && contextoReservaAtualizado.dataResolvida) {
+            const validacaoDataImediata = validarDataResolvidaParaReserva(
+                contextoReservaAtualizado.dataResolvida
+            );
+
+            if (!validacaoDataImediata.aceita) {
+                pararDigitando = await iniciarDigitando(message);
+                const respostaDataInvalida = criarRespostaDataReservaInvalida(
+                    validacaoDataImediata
+                );
+
+                if (pararDigitando) {
+                    await pararDigitando();
+                    pararDigitando = null;
+                }
+
+                await registrarConversaLimpa(message, 'ANA', respostaDataInvalida);
+                await enviar(client, message.from, respostaDataInvalida);
+                return;
+            }
+        }
+
+        const respostaConfirmacaoPendente = controleConfirmacaoEquipe.interpretarResposta(
+            message.from,
+            message.body
+        );
+
+        if (respostaConfirmacaoPendente.tipo === 'confirmada') {
+            pararDigitando = await iniciarDigitando(message);
+            await notificarDuvidaParaEquipe(
+                message,
+                respostaConfirmacaoPendente.perguntaOriginal
+            );
+
+            if (pararDigitando) {
+                await pararDigitando();
+                pararDigitando = null;
+            }
+
+            const respostaConfirmacao = 'Perfeito. Encaminhei sua dúvida para a equipe confirmar a informação. Eles poderão responder pelo WhatsApp assim que possível. 😊';
+            await registrarConversaLimpa(message, 'ANA', respostaConfirmacao);
+            await enviar(client, message.from, respostaConfirmacao);
+            return;
+        }
+
+        if (respostaConfirmacaoPendente.tipo === 'recusada') {
+            const respostaRecusa = 'Tudo bem! Se precisar de outra informação sobre o 2Vales, estou à disposição. 😊';
+            await registrarConversaLimpa(message, 'ANA', respostaRecusa);
+            await enviar(client, message.from, respostaRecusa);
             return;
         }
 
@@ -710,6 +794,15 @@ async function processarMensagemRecebida(message) {
         }
         const deveEnviarLocalizacao = acoes.enviarLocalizacao;
         const deveChamarAtendente = acoes.chamarAtendente;
+
+        if (acoes.confirmarComEquipe) {
+            await notificarDuvidaParaEquipe(message, message.body.trim());
+        } else if (acoes.oferecerConfirmacaoEquipe) {
+            controleConfirmacaoEquipe.registrarOferta(
+                message.from,
+                message.body.trim()
+            );
+        }
 
         const deveNotificarDelivery =
             acoes.pedidoDelivery ||
@@ -750,15 +843,21 @@ ${message.body}`
                 acoes.dadosReserva
             );
             const dadosReserva = reservaReconciliada.dadosReserva;
-            const decisaoReserva = controleEncaminhamentoReserva.registrar(
-                message.from,
-                dadosReserva
-            );
+            if (!reservaReconciliada.validacaoData.aceita) {
+                respostaAna = criarRespostaDataReservaInvalida(
+                    reservaReconciliada.validacaoData
+                );
+                console.log('📅 Solicitação de reserva bloqueada por data inválida.');
+            } else {
+                const decisaoReserva = controleEncaminhamentoReserva.registrar(
+                    message.from,
+                    dadosReserva
+                );
 
-            if (decisaoReserva.tipo === 'nova') {
-                await enviar(
-                    client,
-                    grupoReservas,
+                if (decisaoReserva.tipo === 'nova') {
+                    await enviar(
+                        client,
+                        grupoReservas,
 `📅 NOVA SOLICITAÇÃO DE RESERVA VIA ANA
 
 👤 Cliente:
@@ -770,11 +869,11 @@ ${message.from}
 ━━━━━━━━━━━━━━━
 
 ${dadosReserva}`
-                );
-            } else if (decisaoReserva.tipo === 'atualizacao') {
-                await enviar(
-                    client,
-                    grupoReservas,
+                    );
+                } else if (decisaoReserva.tipo === 'atualizacao') {
+                    await enviar(
+                        client,
+                        grupoReservas,
 `✏️ ATUALIZAÇÃO DE SOLICITAÇÃO DE RESERVA VIA ANA
 
 ⚠️ Esta atualização substitui os dados enviados anteriormente.
@@ -788,19 +887,20 @@ ${message.from}
 ━━━━━━━━━━━━━━━
 
 ${dadosReserva}`
-                );
-            } else {
-                console.log('📅 Solicitação de reserva duplicada ignorada.');
-            }
+                    );
+                } else {
+                    console.log('📅 Solicitação de reserva duplicada ignorada.');
+                }
 
-            if (
-                reservaReconciliada.alterado ||
-                decisaoReserva.tipo !== 'nova'
-            ) {
-                respostaAna = criarRespostaSeguraReserva(
-                    dadosReserva,
-                    decisaoReserva.tipo
-                );
+                if (
+                    reservaReconciliada.alterado ||
+                    decisaoReserva.tipo !== 'nova'
+                ) {
+                    respostaAna = criarRespostaSeguraReserva(
+                        dadosReserva,
+                        decisaoReserva.tipo
+                    );
+                }
             }
         } else if (
             controleEncaminhamentoReserva.obterReservaRecente(message.from) &&

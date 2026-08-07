@@ -1,5 +1,5 @@
 const { extrairCamposReserva } = require('./acoesAna');
-const { obterProximaOcorrenciaDiaSemana } = require('./contextoDataBrasil');
+const { resolverDataMencionada } = require('./contextoDataBrasil');
 
 function normalizarTexto(texto = '') {
     return String(texto || '')
@@ -51,27 +51,24 @@ function detectarAmbiente(texto = '') {
 }
 
 function detectarDataPorDiaSemana(texto = '', dataBase = new Date()) {
-    const mensagem = normalizarTexto(texto);
-    const correspondencia = mensagem.match(
-        /\b(segunda(?:-feira)?|terca(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|sabado|domingo)\b/
-    );
+    const resultado = resolverDataMencionada(texto, dataBase);
 
-    if (!correspondencia) return null;
+    if (!resultado || !/dia-semana/.test(resultado.origem || '')) return null;
 
-    const diaInformado = correspondencia[1];
-    const estritamenteFutura = new RegExp(
-        `(?:proxim[oa]\\s+${diaInformado}|${diaInformado}\\s+que\\s+vem)`,
-        'i'
-    ).test(mensagem);
-    const ocorrencia = obterProximaOcorrenciaDiaSemana(
-        diaInformado,
-        dataBase,
-        { estritamenteFutura }
-    );
+    return `${resultado.data} (${resultado.diaSemana})`;
+}
 
-    if (!ocorrencia) return null;
+function detectarDataReserva(texto = '', dataBase = new Date()) {
+    const resultado = resolverDataMencionada(texto, dataBase);
 
-    return `${ocorrencia.data} (${ocorrencia.diaSemana})`;
+    if (!resultado) return null;
+
+    return {
+        ...resultado,
+        dataFormatada: resultado.valida
+            ? `${resultado.data} (${resultado.diaSemana})`
+            : null
+    };
 }
 
 function interpretarPetDoBloco(valor = '') {
@@ -100,6 +97,24 @@ function formatarDadosReserva(campos = {}) {
         .join('\n');
 }
 
+function validarDataResolvidaParaReserva(dataResolvida) {
+    let motivo = null;
+
+    if (!dataResolvida || !dataResolvida.valida) {
+        motivo = dataResolvida?.motivo || 'data-nao-validada';
+    } else if (dataResolvida.passada) {
+        motivo = 'data-passada';
+    } else if (!dataResolvida.aberto) {
+        motivo = 'restaurante-fechado';
+    }
+
+    return {
+        aceita: !motivo,
+        motivo,
+        detalhes: dataResolvida || null
+    };
+}
+
 function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
     const contextos = new Map();
 
@@ -119,7 +134,8 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
     function atualizar(chave, texto, agora = Date.now()) {
         const pet = detectarIntencaoPet(texto);
         const ambiente = detectarAmbiente(texto);
-        const dataReserva = detectarDataPorDiaSemana(texto, new Date(agora));
+        const dataResolvida = detectarDataReserva(texto, new Date(agora));
+        const dataReserva = dataResolvida?.dataFormatada || null;
         const anterior = obterContexto(chave, agora) || {};
         const contexto = {
             ...anterior,
@@ -128,7 +144,10 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
 
         if (pet !== null) contexto.pet = pet;
         if (ambiente) contexto.ambiente = ambiente;
-        if (dataReserva) contexto.dataReserva = dataReserva;
+        if (dataResolvida) {
+            contexto.dataResolvida = dataResolvida;
+            contexto.dataReserva = dataReserva;
+        }
 
         contextos.set(chave, contexto);
 
@@ -136,7 +155,8 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
             pet,
             ambiente,
             dataReserva,
-            possuiCorrecaoExplicita: pet !== null || Boolean(ambiente) || Boolean(dataReserva)
+            dataResolvida,
+            possuiCorrecaoExplicita: pet !== null || Boolean(ambiente) || Boolean(dataResolvida)
         };
     }
 
@@ -163,6 +183,10 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
             campos.data = contexto.dataReserva;
         }
 
+        const dataResolvida = contexto.dataResolvida ||
+            detectarDataReserva(campos.data, new Date(agora));
+        const validacaoData = validarDataResolvidaParaReserva(dataResolvida);
+
         const ambienteAlterado = Boolean(
             campos.ambiente &&
             normalizarTexto(campos.ambiente) !== normalizarTexto(camposOriginais.ambiente)
@@ -181,7 +205,8 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
                 pet: petFinal,
                 ambiente: campos.ambiente || null,
                 dataReserva: campos.data || null
-            }
+            },
+            validacaoData
         };
     }
 
@@ -206,11 +231,36 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
     };
 }
 
+function criarRespostaDataReservaInvalida(validacaoData = {}) {
+    const { motivo, detalhes } = validacaoData;
+
+    if (motivo === 'data-passada') {
+        return 'Essa data já passou, então não consigo encaminhá-la como uma nova solicitação de reserva. Qual data futura o senhor prefere?';
+    }
+
+    if (motivo === 'restaurante-fechado') {
+        const referencia = detalhes?.data && detalhes?.diaSemana
+            ? `em ${detalhes.data} (${detalhes.diaSemana})`
+            : 'nessa data';
+
+        return `O restaurante estará fechado ${referencia}. Funcionamos de quarta-feira a domingo. Qual outro dia o senhor prefere?`;
+    }
+
+    if (motivo === 'data-inexistente' || motivo === 'dia-inexistente') {
+        return 'A data informada não existe no calendário. Poderia conferir e me enviar uma nova data, por favor?';
+    }
+
+    return 'Não consegui validar essa data com segurança. Poderia informá-la no formato dia/mês/ano, por favor?';
+}
+
 module.exports = {
     criarContextoReservaCliente,
+    criarRespostaDataReservaInvalida,
     detectarAmbiente,
+    detectarDataReserva,
     detectarDataPorDiaSemana,
     detectarIntencaoPet,
     formatarDadosReserva,
-    normalizarTexto
+    normalizarTexto,
+    validarDataResolvidaParaReserva
 };
