@@ -407,7 +407,7 @@ Resposta base:
 Os pratos da Boa Lembrança são exclusivos para consumo no restaurante.
 
 Não ofereça pratos da Boa Lembrança para delivery.
-Não diga que Polpetone de Filé Mignon ou Ossobuco de Vitelo da Boa Lembrança podem ser enviados por delivery.
+Não diga que Polpetone de Filé Mignon, Ossobuco de Vitelo ou Surpresa de Bombom da Boa Lembrança podem ser enviados por delivery.
 Se o cliente pedir Boa Lembrança no delivery, responda:
 
 "Os pratos da Boa Lembrança são exclusivos para consumo no restaurante. Para delivery, posso te orientar com as outras opções do cardápio."
@@ -541,7 +541,7 @@ BOA LEMBRANÇA NO DELIVERY
 
 Os pratos da Boa Lembrança são exclusivos para consumo no restaurante.
 
-A Ana não deve oferecer Polpetone de Filé Mignon nem Ossobuco de Vitelo da Boa Lembrança para delivery.
+A Ana não deve oferecer Polpetone de Filé Mignon, Ossobuco de Vitelo nem Surpresa de Bombom da Boa Lembrança para delivery.
 
 Se o cliente pedir prato da Boa Lembrança no delivery, responder:
 
