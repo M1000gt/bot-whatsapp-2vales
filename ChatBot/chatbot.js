@@ -22,6 +22,11 @@ const {
     criarRespostaBloqueioDeliveryBoaLembranca
 } = require('../core/utils/boaLembranca');
 const {
+    criarRespostaRecebimentoPedidoDelivery,
+    mensagemPareceDadosDePedido,
+    textoTemItemDePedido
+} = require('../core/utils/pedidoDelivery');
+const {
     criarControleConfirmacaoEquipe,
     criarRespostaOfertaConfirmacao,
     mensagemAceitaConfirmacao,
@@ -450,9 +455,7 @@ function textoIniciaDelivery(texto = '') {
 }
 
 function textoTemItensDePedido(texto = '') {
-    const msg = normalizarTextoDelivery(texto);
-
-    return /\b(file|filet|framboises|naranjita|roesti|batata|arroz|pure|puree|massa|prato|acompanhamento|quantidade|dividido|ao ponto|mal passado|bem passado|ossobuco|polpetone|salmao|peixe|carne)\b/i.test(msg);
+    return textoTemItemDePedido(texto);
 }
 
 function marcarContextoDelivery(chatId) {
@@ -805,6 +808,20 @@ async function processarMensagemRecebida(message) {
             acoes.confirmarComEquipe = false;
             acoes.chamarAtendente = false;
             contextosDeliveryAtivos.delete(message.from);
+        }
+
+        const dadosPedidoDeliveryRecebidos =
+            !deliveryBoaLembranca.bloquear &&
+            contextoDeliveryAtivo(message.from) &&
+            mensagemPareceDadosDePedido(message.body);
+
+        if (dadosPedidoDeliveryRecebidos) {
+            respostaAna = criarRespostaRecebimentoPedidoDelivery();
+            acoes.pedidoDelivery = true;
+            acoes.oferecerConfirmacaoEquipe = false;
+            acoes.confirmarComEquipe = false;
+            acoes.chamarAtendente = false;
+            controleConfirmacaoEquipe.limpar(message.from);
         }
 
         const deveEnviarCardapio =

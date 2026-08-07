@@ -68,3 +68,12 @@ test('diferencia pedido direto de oferta escrita pela Ana', () => {
         true
     );
 });
+
+test('permite limpar uma pendência quando outro fluxo assume a conversa', () => {
+    const controle = criarControleConfirmacaoEquipe();
+
+    controle.registrarOferta('cliente-5', 'Pergunta antiga', 1000);
+    controle.limpar('cliente-5');
+
+    assert.equal(controle.interpretarResposta('cliente-5', 'sim', 2000).tipo, 'nenhuma');
+});

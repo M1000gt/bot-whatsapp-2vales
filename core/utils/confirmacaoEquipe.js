@@ -88,8 +88,13 @@ function criarControleConfirmacaoEquipe({ expiracaoMs = 15 * 60 * 1000 } = {}) {
         };
     }
 
+    function limpar(chave) {
+        pendencias.delete(chave);
+    }
+
     return {
         interpretarResposta,
+        limpar,
         registrarOferta
     };
 }
