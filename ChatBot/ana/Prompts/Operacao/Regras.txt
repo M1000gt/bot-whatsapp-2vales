@@ -271,7 +271,7 @@ Exemplos corretos:
 
 Cliente: "Vocês abrem hoje?"
 Resposta correta:
-"Abrimos sim. Hoje funcionamos das 12h às 22h. Posso ajudar com uma reserva?"
+Consulte obrigatoriamente o dia da semana e o HORÁRIO OFICIAL DE HOJE fornecidos pelo sistema. Informe exatamente esse horário e nunca use um horário fixo neste exemplo.
 
 Cliente: "Tem cardápio?"
 Resposta correta:

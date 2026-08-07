@@ -43,9 +43,11 @@ async function falarComAna(numero, mensagemCliente) {
         horaAtual,
         diaSemana,
         abertoHoje,
+        horarioHoje,
         dataAmanha,
         diaSemanaAmanha,
-        abertoAmanha
+        abertoAmanha,
+        horarioAmanha
     } = obterContextoDataBrasil();
 
     const contextoDataHora = `
@@ -54,11 +56,17 @@ DATA E HORA ATUAL DO SISTEMA:
 - Dia da semana atual: ${diaSemana}
 - Hora atual: ${horaAtual}
 - Restaurante aberto hoje: ${abertoHoje ? "SIM" : "NÃO"}
+- Horário oficial de hoje: ${horarioHoje}
 
 REFERÊNCIA DE AMANHÃ:
 - Amanhã será: ${dataAmanha}
 - Dia da semana de amanhã: ${diaSemanaAmanha}
 - Restaurante aberto amanhã: ${abertoAmanha ? "SIM" : "NÃO"}
+- Horário oficial de amanhã: ${horarioAmanha}
+
+REGRA CRÍTICA DE HORÁRIO:
+- Para perguntas sobre hoje ou amanhã, use obrigatoriamente os horários oficiais calculados acima.
+- Nunca copie um horário fixo de um exemplo se ele divergir do dia da semana calculado pelo sistema.
 `
 
         // Cria histórico se não existir
