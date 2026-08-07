@@ -16,6 +16,7 @@ const { interpretarRespostaAna } = require('../core/utils/acoesAna');
 const { classificarMensagem2Vales } = require('../core/utils/classificador2Vales');
 const { criarFilaPorChave } = require('../core/utils/filaPorChave');
 const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
+const { mensagemAutorizaEnvioCardapio } = require('../core/utils/intencaoCardapio');
 
 const menu =
 require('./Mensagens/menu');
@@ -687,7 +688,13 @@ async function processarMensagemRecebida(message) {
         const respostaAna = resultadoAna.textoCliente;
         const { acoes } = resultadoAna;
 
-        const deveEnviarCardapio = acoes.enviarCardapio;
+        const deveEnviarCardapio =
+            acoes.enviarCardapio &&
+            mensagemAutorizaEnvioCardapio(message.body);
+
+        if (acoes.enviarCardapio && !deveEnviarCardapio) {
+            console.log('📄 Marcador de cardápio ignorado: a mensagem do cliente não autorizou o envio do PDF.');
+        }
         const deveEnviarLocalizacao = acoes.enviarLocalizacao;
         const deveChamarAtendente = acoes.chamarAtendente;
 

@@ -4,6 +4,8 @@ CARDÁPIO OFICIAL DO 2VALES RESTAURANTE
 Use apenas as informações abaixo.
 Não invente pratos, sobremesas, bebidas ou valores.
 Se o cliente pedir o cardápio completo, use o marcador [[ENVIAR_CARDAPIO]].
+Se o cliente perguntar somente preço, ingredientes ou detalhes de um item específico, responda com os dados oficiais abaixo e não use [[ENVIAR_CARDAPIO]].
+Se apenas oferecer o cardápio, espere o cliente aceitar antes de usar [[ENVIAR_CARDAPIO]].
 
 CONTEÚDO EXTRAÍDO DO CARDÁPIO:
 Nossas Entradas
