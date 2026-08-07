@@ -17,6 +17,13 @@ const { classificarMensagem2Vales } = require('../core/utils/classificador2Vales
 const { criarFilaPorChave } = require('../core/utils/filaPorChave');
 const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
 const { mensagemAutorizaEnvioCardapio } = require('../core/utils/intencaoCardapio');
+const { criarContextoReservaCliente } = require('../core/utils/contextoReservaCliente');
+const {
+    criarControleEncaminhamentoReserva,
+    criarRespostaCortesiaReserva,
+    criarRespostaSeguraReserva,
+    mensagemEhCortesiaAposReserva
+} = require('../core/utils/controleEncaminhamentoReserva');
 
 const menu =
 require('./Mensagens/menu');
@@ -95,6 +102,8 @@ const boasVindas = [
     'olá bom dia', 'olá boa tarde', 'olá boa noite'
     ]
 const filaMensagens = criarFilaPorChave();
+const contextoReservaCliente = criarContextoReservaCliente();
+const controleEncaminhamentoReserva = criarControleEncaminhamentoReserva();
 // ========================================
 
 // QR CODE
@@ -654,6 +663,7 @@ async function processarMensagemRecebida(message) {
       ) return;
 
         const msg = message.body.toLowerCase().trim();
+        contextoReservaCliente.atualizar(message.from, message.body);
 
           if (textoIniciaDelivery(message.body)) {
               marcarContextoDelivery(message.from);
@@ -685,7 +695,7 @@ async function processarMensagemRecebida(message) {
         );
 
         const resultadoAna = interpretarRespostaAna(respostaOriginalAna);
-        const respostaAna = resultadoAna.textoCliente;
+        let respostaAna = resultadoAna.textoCliente;
         const { acoes } = resultadoAna;
 
         const deveEnviarCardapio =
@@ -732,11 +742,20 @@ ${message.body}`
         }
 
         if (acoes.reservaCompleta) {
-            const dadosReserva = acoes.dadosReserva;
+            const reservaReconciliada = contextoReservaCliente.reconciliar(
+                message.from,
+                acoes.dadosReserva
+            );
+            const dadosReserva = reservaReconciliada.dadosReserva;
+            const decisaoReserva = controleEncaminhamentoReserva.registrar(
+                message.from,
+                dadosReserva
+            );
 
-            await enviar(
-                client,
-                grupoReservas,
+            if (decisaoReserva.tipo === 'nova') {
+                await enviar(
+                    client,
+                    grupoReservas,
 `📅 NOVA SOLICITAÇÃO DE RESERVA VIA ANA
 
 👤 Cliente:
@@ -748,7 +767,45 @@ ${message.from}
 ━━━━━━━━━━━━━━━
 
 ${dadosReserva}`
-            );
+                );
+            } else if (decisaoReserva.tipo === 'atualizacao') {
+                await enviar(
+                    client,
+                    grupoReservas,
+`✏️ ATUALIZAÇÃO DE SOLICITAÇÃO DE RESERVA VIA ANA
+
+⚠️ Esta atualização substitui os dados enviados anteriormente.
+
+👤 Cliente:
+${message._data?.notifyName || 'Não informado'}
+
+📱 Número:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+${dadosReserva}`
+                );
+            } else {
+                console.log('📅 Solicitação de reserva duplicada ignorada.');
+            }
+
+            if (
+                reservaReconciliada.alterado ||
+                decisaoReserva.tipo !== 'nova'
+            ) {
+                respostaAna = criarRespostaSeguraReserva(
+                    dadosReserva,
+                    decisaoReserva.tipo
+                );
+            }
+        } else if (
+            controleEncaminhamentoReserva.obterReservaRecente(message.from) &&
+            mensagemEhCortesiaAposReserva(message.body)
+        ) {
+            // Depois do encaminhamento, respostas como "perfeito" não podem
+            // virar uma confirmação implícita de disponibilidade.
+            respostaAna = criarRespostaCortesiaReserva();
         }
 
         // O indicador deve desaparecer antes da primeira resposta visível.

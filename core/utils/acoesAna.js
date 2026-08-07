@@ -76,6 +76,7 @@ function interpretarRespostaAna(respostaOriginal) {
 }
 
 module.exports = {
+    extrairCamposReserva,
     interpretarRespostaAna,
     reservaTemDadosMinimos
 };
