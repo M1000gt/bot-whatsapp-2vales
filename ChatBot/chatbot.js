@@ -22,7 +22,9 @@ const {
     criarRespostaBloqueioDeliveryBoaLembranca
 } = require('../core/utils/boaLembranca');
 const {
+    criarRespostaInicioPedidoDelivery,
     criarRespostaRecebimentoPedidoDelivery,
+    deveSolicitarDadosIniciaisDelivery,
     mensagemPareceDadosDePedido,
     textoTemItemDePedido
 } = require('../core/utils/pedidoDelivery');
@@ -748,6 +750,28 @@ async function processarMensagemRecebida(message) {
                 await enviar(client, message.from, respostaDataInvalida);
                 return;
             }
+        }
+
+        const inicioPedidoDelivery = deveSolicitarDadosIniciaisDelivery(
+            message.body
+        );
+        const boaLembrancaNoInicio = analisarDeliveryBoaLembranca(
+            message.body
+        );
+
+        if (inicioPedidoDelivery && !boaLembrancaNoInicio.bloquear) {
+            controleConfirmacaoEquipe.limpar(message.from);
+            pararDigitando = await iniciarDigitando(message);
+            const respostaInicioDelivery = criarRespostaInicioPedidoDelivery();
+
+            if (pararDigitando) {
+                await pararDigitando();
+                pararDigitando = null;
+            }
+
+            await registrarConversaLimpa(message, 'ANA', respostaInicioDelivery);
+            await enviar(client, message.from, respostaInicioDelivery);
+            return;
         }
 
         const respostaConfirmacaoPendente = controleConfirmacaoEquipe.interpretarResposta(

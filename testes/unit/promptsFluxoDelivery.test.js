@@ -14,3 +14,9 @@ test('pedido de delivery tem prioridade sobre informação não cadastrada', () 
     assert.match(regras, /reconhecer os dados recebidos e encaminhar o pedido/i);
 });
 
+test('pedido delivery e pedido para entrega abrem o mesmo fluxo', () => {
+    assert.match(regras, /quero fazer um pedido delivery/i);
+    assert.match(regras, /quero fazer um pedido para entrega/i);
+    assert.match(regras, /significam a mesma intenção/i);
+    assert.match(regras, /não significa, sozinha, que o cliente já iniciou um pedido/i);
+});
