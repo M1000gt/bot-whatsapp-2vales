@@ -302,6 +302,7 @@ async function tentarEnviarDigitando(chatId) {
 async function iniciarDigitando(message) {
     const chatId = message.from;
     let intervalo = null;
+    let renovacaoEmAndamento = null;
     let parado = false;
 
     const primeiraTentativa = await tentarEnviarDigitando(chatId);
@@ -309,16 +310,23 @@ async function iniciarDigitando(message) {
     if (primeiraTentativa.ok) {
         console.log(`⌨️ Digitando iniciado para ${chatId} via ${primeiraTentativa.metodo}`);
 
-        intervalo = setInterval(async () => {
-            if (parado) return;
+        intervalo = setInterval(() => {
+            if (parado || renovacaoEmAndamento) return;
 
-            const novaTentativa = await tentarEnviarDigitando(chatId);
-
-            if (novaTentativa.ok) {
-                console.log(`⌨️ Digitando renovado para ${chatId} via ${novaTentativa.metodo}`);
-            } else {
-                console.log(`⚠️ Não consegui renovar digitando para ${chatId}: ${novaTentativa.erro}`);
-            }
+            renovacaoEmAndamento = tentarEnviarDigitando(chatId)
+                .then((novaTentativa) => {
+                    if (novaTentativa.ok) {
+                        console.log(`⌨️ Digitando renovado para ${chatId} via ${novaTentativa.metodo}`);
+                    } else {
+                        console.log(`⚠️ Não consegui renovar digitando para ${chatId}: ${novaTentativa.erro}`);
+                    }
+                })
+                .catch((error) => {
+                    console.log(`⚠️ Erro ao renovar digitando para ${chatId}: ${error.message}`);
+                })
+                .finally(() => {
+                    renovacaoEmAndamento = null;
+                });
         }, 7000);
     } else {
         console.log(`⚠️ Não consegui iniciar digitando para ${chatId}: ${primeiraTentativa.erro}`);
@@ -331,6 +339,14 @@ async function iniciarDigitando(message) {
 
         if (intervalo) {
             clearInterval(intervalo);
+        }
+
+        // Uma renovação iniciada pouco antes da parada poderia religar o
+        // estado de digitação. Aguarde-a terminar e só então limpe o estado.
+        if (renovacaoEmAndamento) {
+            try {
+                await renovacaoEmAndamento;
+            } catch (_) {}
         }
 
         try {
@@ -726,6 +742,13 @@ ${message.from}
 
 ${dadosReserva}`
             );
+        }
+
+        // O indicador deve desaparecer antes da primeira resposta visível.
+        // Uploads de PDF ou outras ações posteriores não devem mantê-lo ativo.
+        if (pararDigitando) {
+            await pararDigitando();
+            pararDigitando = null;
         }
 
         // ========================================
