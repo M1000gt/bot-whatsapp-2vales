@@ -47,8 +47,13 @@ async function falarComAna(numero, mensagemCliente) {
         dataAmanha,
         diaSemanaAmanha,
         abertoAmanha,
-        horarioAmanha
+        horarioAmanha,
+        calendarioProximosDias
     } = obterContextoDataBrasil();
+
+    const calendarioFormatado = calendarioProximosDias
+        .map(dia => `- ${dia.diaSemana}: ${dia.data} — ${dia.horario}`)
+        .join('\n');
 
     const contextoDataHora = `
 DATA E HORA ATUAL DO SISTEMA:
@@ -64,9 +69,14 @@ REFERÊNCIA DE AMANHÃ:
 - Restaurante aberto amanhã: ${abertoAmanha ? "SIM" : "NÃO"}
 - Horário oficial de amanhã: ${horarioAmanha}
 
+CALENDÁRIO OFICIAL — HOJE E PRÓXIMOS 7 DIAS:
+${calendarioFormatado}
+
 REGRA CRÍTICA DE HORÁRIO:
 - Para perguntas sobre hoje ou amanhã, use obrigatoriamente os horários oficiais calculados acima.
 - Nunca copie um horário fixo de um exemplo se ele divergir do dia da semana calculado pelo sistema.
+- Em uma nova reserva, quando o cliente disser apenas um dia da semana, use a primeira ocorrência desse dia que seja hoje ou futura, conforme o calendário oficial. Nunca escolha uma data que já passou.
+- Se o cliente disser "próxima quinta", "quinta que vem" ou expressão equivalente, escolha uma ocorrência estritamente futura.
 `
 
         // Cria histórico se não existir

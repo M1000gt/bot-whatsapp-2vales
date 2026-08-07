@@ -695,7 +695,10 @@ async function processarMensagemRecebida(message) {
         );
 
         const resultadoAna = interpretarRespostaAna(respostaOriginalAna);
-        let respostaAna = resultadoAna.textoCliente;
+        let respostaAna = contextoReservaCliente.corrigirDataNaResposta(
+            message.from,
+            resultadoAna.textoCliente
+        );
         const { acoes } = resultadoAna;
 
         const deveEnviarCardapio =

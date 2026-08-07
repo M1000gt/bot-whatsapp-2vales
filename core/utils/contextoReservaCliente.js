@@ -1,4 +1,5 @@
 const { extrairCamposReserva } = require('./acoesAna');
+const { obterProximaOcorrenciaDiaSemana } = require('./contextoDataBrasil');
 
 function normalizarTexto(texto = '') {
     return String(texto || '')
@@ -49,6 +50,30 @@ function detectarAmbiente(texto = '') {
     return null;
 }
 
+function detectarDataPorDiaSemana(texto = '', dataBase = new Date()) {
+    const mensagem = normalizarTexto(texto);
+    const correspondencia = mensagem.match(
+        /\b(segunda(?:-feira)?|terca(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|sabado|domingo)\b/
+    );
+
+    if (!correspondencia) return null;
+
+    const diaInformado = correspondencia[1];
+    const estritamenteFutura = new RegExp(
+        `(?:proxim[oa]\\s+${diaInformado}|${diaInformado}\\s+que\\s+vem)`,
+        'i'
+    ).test(mensagem);
+    const ocorrencia = obterProximaOcorrenciaDiaSemana(
+        diaInformado,
+        dataBase,
+        { estritamenteFutura }
+    );
+
+    if (!ocorrencia) return null;
+
+    return `${ocorrencia.data} (${ocorrencia.diaSemana})`;
+}
+
 function interpretarPetDoBloco(valor = '') {
     const pet = normalizarTexto(valor);
 
@@ -94,6 +119,7 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
     function atualizar(chave, texto, agora = Date.now()) {
         const pet = detectarIntencaoPet(texto);
         const ambiente = detectarAmbiente(texto);
+        const dataReserva = detectarDataPorDiaSemana(texto, new Date(agora));
         const anterior = obterContexto(chave, agora) || {};
         const contexto = {
             ...anterior,
@@ -102,13 +128,15 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
 
         if (pet !== null) contexto.pet = pet;
         if (ambiente) contexto.ambiente = ambiente;
+        if (dataReserva) contexto.dataReserva = dataReserva;
 
         contextos.set(chave, contexto);
 
         return {
             pet,
             ambiente,
-            possuiCorrecaoExplicita: pet !== null || Boolean(ambiente)
+            dataReserva,
+            possuiCorrecaoExplicita: pet !== null || Boolean(ambiente) || Boolean(dataReserva)
         };
     }
 
@@ -131,25 +159,49 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
             campos.ambiente = contexto.ambiente;
         }
 
+        if (contexto.dataReserva) {
+            campos.data = contexto.dataReserva;
+        }
+
         const ambienteAlterado = Boolean(
             campos.ambiente &&
             normalizarTexto(campos.ambiente) !== normalizarTexto(camposOriginais.ambiente)
         );
         const petAlterado = typeof petFinal === 'boolean' && petOriginal !== petFinal;
+        const dataAlterada = Boolean(
+            campos.data &&
+            normalizarTexto(campos.data) !== normalizarTexto(camposOriginais.data)
+        );
 
         return {
             dadosReserva: formatarDadosReserva(campos),
             campos,
-            alterado: ambienteAlterado || petAlterado,
+            alterado: ambienteAlterado || petAlterado || dataAlterada,
             preferencias: {
                 pet: petFinal,
-                ambiente: campos.ambiente || null
+                ambiente: campos.ambiente || null,
+                dataReserva: campos.data || null
             }
         };
     }
 
+    function corrigirDataNaResposta(chave, resposta, agora = Date.now()) {
+        const contexto = obterContexto(chave, agora);
+
+        if (!contexto?.dataReserva || !/(reserv|hor[aá]rio|dados)/i.test(resposta || '')) {
+            return resposta;
+        }
+
+        const dataCorreta = contexto.dataReserva.match(/^\d{2}\/\d{2}\/\d{4}/)?.[0];
+
+        if (!dataCorreta) return resposta;
+
+        return String(resposta).replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, dataCorreta);
+    }
+
     return {
         atualizar,
+        corrigirDataNaResposta,
         reconciliar
     };
 }
@@ -157,6 +209,7 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
 module.exports = {
     criarContextoReservaCliente,
     detectarAmbiente,
+    detectarDataPorDiaSemana,
     detectarIntencaoPet,
     formatarDadosReserva,
     normalizarTexto

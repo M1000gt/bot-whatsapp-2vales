@@ -117,6 +117,9 @@ REGRAS DE INTERPRETAÇÃO:
 - Quando o cliente disser "hoje", use a data atual fornecida ao sistema.
 - Quando o cliente disser "amanhã", use obrigatoriamente a referência de amanhã fornecida ao sistema.
 - Não confunda "amanhã" com "hoje".
+- Em uma nova reserva, quando o cliente disser apenas "quarta-feira", "quinta-feira" ou outro dia da semana, use a primeira ocorrência que seja hoje ou futura. Nunca atribua à reserva uma data que já passou.
+- Se o cliente disser "próxima quinta", "quinta que vem" ou expressão equivalente, use uma ocorrência estritamente futura.
+- Confira a data escolhida no CALENDÁRIO OFICIAL fornecido pelo sistema antes de apresentá-la ao cliente ou gerar o bloco [[RESERVA_COMPLETA]].
 - O restaurante fecha somente segunda-feira e terça-feira.
 - Quarta-feira, quinta-feira, sexta-feira, sábado e domingo são dias de funcionamento.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

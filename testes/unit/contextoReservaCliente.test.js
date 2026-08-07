@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
     criarContextoReservaCliente,
     detectarAmbiente,
+    detectarDataPorDiaSemana,
     detectarIntencaoPet
 } = require('../../core/utils/contextoReservaCliente');
 
@@ -53,3 +54,28 @@ test('reconhece formas usuais de ambiente', () => {
     assert.equal(detectarAmbiente('pode ser a sala reservada?'), 'Sala VIP');
 });
 
+test('guarda a próxima quinta-feira e corrige data passada no bloco e na resposta', () => {
+    const contexto = criarContextoReservaCliente();
+    const sexta = new Date('2026-08-07T22:00:00.000Z').getTime();
+    const blocoComOntem = reservaInterpretadaErrado.replace(
+        'Data: 07/08/2026',
+        'Data: 06/08/2026 (quinta-feira)'
+    );
+
+    assert.equal(
+        detectarDataPorDiaSemana('reserva para quinta-feira', new Date(sexta)),
+        '13/08/2026 (quinta-feira)'
+    );
+
+    contexto.atualizar('cliente-3', 'quero fazer uma reserva para quinta-feira', sexta);
+    const resultado = contexto.reconciliar('cliente-3', blocoComOntem, sexta + 1000);
+    const resposta = contexto.corrigirDataNaResposta(
+        'cliente-3',
+        'Sua reserva para 06/08/2026 será encaminhada.',
+        sexta + 2000
+    );
+
+    assert.match(resultado.dadosReserva, /Data: 13\/08\/2026 \(quinta-feira\)/);
+    assert.equal(resultado.alterado, true);
+    assert.equal(resposta, 'Sua reserva para 13/08/2026 será encaminhada.');
+});
