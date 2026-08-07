@@ -18,6 +18,10 @@ const { criarFilaPorChave } = require('../core/utils/filaPorChave');
 const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
 const { mensagemAutorizaEnvioCardapio } = require('../core/utils/intencaoCardapio');
 const {
+    analisarDeliveryBoaLembranca,
+    criarRespostaBloqueioDeliveryBoaLembranca
+} = require('../core/utils/boaLembranca');
+const {
     criarControleConfirmacaoEquipe,
     criarRespostaOfertaConfirmacao,
     mensagemAceitaConfirmacao,
@@ -790,6 +794,18 @@ async function processarMensagemRecebida(message) {
             resultadoAna.textoCliente
         );
         const { acoes } = resultadoAna;
+        const deliveryBoaLembranca = analisarDeliveryBoaLembranca(message.body);
+
+        if (deliveryBoaLembranca.bloquear) {
+            respostaAna = criarRespostaBloqueioDeliveryBoaLembranca(
+                deliveryBoaLembranca.prato
+            );
+            acoes.pedidoDelivery = false;
+            acoes.oferecerConfirmacaoEquipe = false;
+            acoes.confirmarComEquipe = false;
+            acoes.chamarAtendente = false;
+            contextosDeliveryAtivos.delete(message.from);
+        }
 
         const deveEnviarCardapio =
             acoes.enviarCardapio &&
@@ -827,11 +843,14 @@ async function processarMensagemRecebida(message) {
         }
 
         const deveNotificarDelivery =
-            acoes.pedidoDelivery ||
+            !deliveryBoaLembranca.bloquear &&
             (
-                contextoDeliveryAtivo(message.from) &&
-                textoTemItensDePedido(message.body || '') &&
-                /(encaminh|confirm|pedido|delivery|entrega|equipe)/i.test(respostaAna)
+                acoes.pedidoDelivery ||
+                (
+                    contextoDeliveryAtivo(message.from) &&
+                    textoTemItensDePedido(message.body || '') &&
+                    /(encaminh|confirm|pedido|delivery|entrega|equipe)/i.test(respostaAna)
+                )
             );
 
         // As ações internas acontecem antes da confirmação ao cliente.

@@ -25,5 +25,5 @@ test('proíbe Surpresa de Bombom no delivery em todas as regras específicas', (
 
     assert.equal(ocorrencias.length, 2);
     assert.match(regras, /pratos da Boa Lembrança são exclusivos para consumo no restaurante/i);
+    assert.match(cardapio, /Surpresa de Bombom não estão disponíveis para delivery/i);
 });
-
