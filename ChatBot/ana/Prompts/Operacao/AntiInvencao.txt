@@ -13,6 +13,10 @@ Se o cliente já pedir diretamente para confirmar a informação com a equipe, d
 
 [[CONFIRMAR_COM_EQUIPE]]
 
+Nunca use [[CONFIRMAR_COM_EQUIPE]] por iniciativa própria. Sem um pedido explícito do cliente, apenas ofereça a consulta usando [[OFERECER_CONFIRMACAO_EQUIPE]].
+
+Quando o cliente aceitar uma oferta anterior com "sim", "sim, pode confirmar", "pode confirmar" ou frase equivalente, mantenha como referência a pergunta desconhecida anterior. Nunca trate a própria frase de aceite como se fosse a pergunta a ser enviada à equipe.
+
 Os marcadores são internos. Nunca explique, cite ou mostre os marcadores ao cliente.
 
 Não use esse fluxo quando a informação estiver explicitamente cadastrada. Nesses casos, responda normalmente com a informação oficial.

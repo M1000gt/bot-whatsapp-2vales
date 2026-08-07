@@ -10,13 +10,32 @@ function normalizarMensagem(texto = '') {
 function mensagemAceitaConfirmacao(texto = '') {
     const mensagem = normalizarMensagem(texto);
 
-    return /^(?:sim|sim por favor|pode|pode sim|pode confirmar|confirma por favor|por favor|quero sim|gostaria sim|claro|ok pode confirmar)$/.test(mensagem);
+    return /^(?:sim|sim por favor|sim pode|sim pode confirmar|sim confirma|pode|pode sim|pode confirmar|confirma por favor|por favor|quero sim|gostaria sim|claro|ok pode confirmar)$/.test(mensagem);
 }
 
 function mensagemRecusaConfirmacao(texto = '') {
     const mensagem = normalizarMensagem(texto);
 
     return /^(?:nao|nao obrigado|nao obrigada|deixa|deixa pra la|deixa para la|nao precisa|obrigado nao|obrigada nao)$/.test(mensagem);
+}
+
+function mensagemPedeConfirmacaoDireta(texto = '') {
+    const mensagem = normalizarMensagem(texto);
+
+    return /\b(?:pode|consegue|poderia|gostaria de|quero que)\b.{0,35}\b(?:confirmar|consultar|verificar|perguntar)\b/.test(mensagem) ||
+        /\b(?:confirma|confirme|consulte|verifique|pergunte)\b.{0,35}\b(?:equipe|pessoal|responsavel)\b/.test(mensagem);
+}
+
+function respostaOfereceConfirmacao(texto = '') {
+    const mensagem = normalizarMensagem(texto);
+
+    return /nao tenho.{0,50}informacao confirmada/.test(mensagem) ||
+        /(?:posso|se desejar).{0,70}(?:equipe|pessoal).{0,40}(?:confirm|consult|verific)/.test(mensagem) ||
+        /(?:vou|irei) encaminhar.{0,60}(?:equipe|responsavel)/.test(mensagem);
+}
+
+function criarRespostaOfertaConfirmacao() {
+    return 'Não tenho essa informação confirmada no meu material no momento. Se desejar, posso pedir à equipe que confirme para o senhor.';
 }
 
 function criarControleConfirmacaoEquipe({ expiracaoMs = 15 * 60 * 1000 } = {}) {
@@ -76,8 +95,11 @@ function criarControleConfirmacaoEquipe({ expiracaoMs = 15 * 60 * 1000 } = {}) {
 }
 
 module.exports = {
+    criarRespostaOfertaConfirmacao,
     criarControleConfirmacaoEquipe,
     mensagemAceitaConfirmacao,
+    mensagemPedeConfirmacaoDireta,
     mensagemRecusaConfirmacao,
-    normalizarMensagem
+    normalizarMensagem,
+    respostaOfereceConfirmacao
 };

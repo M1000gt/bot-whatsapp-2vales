@@ -70,6 +70,14 @@ test('resolve data sem ano para a próxima ocorrência e atravessa o ano', () =>
     assert.equal(resultado.passada, false);
 });
 
+test('não transforma data recém-passada sem ano em reserva para o ano seguinte', () => {
+    const sexta = new Date('2026-08-07T22:00:00.000Z');
+    const resultado = resolverDataMencionada('quero para 06/08', sexta);
+
+    assert.equal(resultado.data, '06/08/2026');
+    assert.equal(resultado.passada, true);
+});
+
 test('identifica data explicitamente passada', () => {
     const sexta = new Date('2026-08-07T22:00:00.000Z');
     const resultado = resolverDataMencionada('reserva para 06/08/2026', sexta);

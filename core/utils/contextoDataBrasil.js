@@ -167,15 +167,49 @@ function resolverDataMencionada(texto = '', dataBase = new Date()) {
             return descreverDataResolvida(data, dataBase, 'data-explicita');
         }
 
-        // Sem ano, escolha a próxima ocorrência válida da data, inclusive hoje.
-        for (let acrescimo = 0; acrescimo <= 8; acrescimo += 1) {
-            const ano = Number(hoje.year) + acrescimo;
-            const data = criarDataCivilValida(dia, mes, ano);
+        const anoAtual = Number(hoje.year);
+        const dataNoAnoAtual = criarDataCivilValida(dia, mes, anoAtual);
 
-            if (!data) continue;
+        if (dataNoAnoAtual) {
+            const resultadoAtual = descreverDataResolvida(
+                dataNoAnoAtual,
+                dataBase,
+                'data-sem-ano'
+            );
 
-            const resultado = descreverDataResolvida(data, dataBase, 'data-sem-ano');
-            if (!resultado.passada) return resultado;
+            if (!resultadoAtual.passada) return resultadoAtual;
+
+            // Perto da virada do ano, 02/01 em 31/12 normalmente significa
+            // o próximo ano. Fora dessa janela, não transforme silenciosamente
+            // uma data recém-passada em uma reserva para quase um ano depois.
+            const dataProximoAno = criarDataCivilValida(dia, mes, anoAtual + 1);
+            const hojeCivil = criarDataCivilValida(
+                Number(hoje.day),
+                Number(hoje.month),
+                anoAtual
+            );
+            const diasAteProximoAno = dataProximoAno && hojeCivil
+                ? Math.round((dataProximoAno - hojeCivil) / (24 * 60 * 60 * 1000))
+                : null;
+
+            if (diasAteProximoAno !== null && diasAteProximoAno <= 183) {
+                return descreverDataResolvida(
+                    dataProximoAno,
+                    dataBase,
+                    'data-sem-ano-proximo-ano'
+                );
+            }
+
+            return resultadoAtual;
+        }
+
+        // Datas que não existem no ano atual, como 29/02 em ano não bissexto,
+        // procuram a próxima ocorrência real. Datas impossíveis nunca passam.
+        for (let acrescimo = 1; acrescimo <= 8; acrescimo += 1) {
+            const data = criarDataCivilValida(dia, mes, anoAtual + acrescimo);
+            if (data) {
+                return descreverDataResolvida(data, dataBase, 'data-sem-ano');
+            }
         }
 
         return {

@@ -17,7 +17,13 @@ const { classificarMensagem2Vales } = require('../core/utils/classificador2Vales
 const { criarFilaPorChave } = require('../core/utils/filaPorChave');
 const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
 const { mensagemAutorizaEnvioCardapio } = require('../core/utils/intencaoCardapio');
-const { criarControleConfirmacaoEquipe } = require('../core/utils/confirmacaoEquipe');
+const {
+    criarControleConfirmacaoEquipe,
+    criarRespostaOfertaConfirmacao,
+    mensagemAceitaConfirmacao,
+    mensagemPedeConfirmacaoDireta,
+    respostaOfereceConfirmacao
+} = require('../core/utils/confirmacaoEquipe');
 const {
     criarContextoReservaCliente,
     criarRespostaDataReservaInvalida,
@@ -796,12 +802,28 @@ async function processarMensagemRecebida(message) {
         const deveChamarAtendente = acoes.chamarAtendente;
 
         if (acoes.confirmarComEquipe) {
-            await notificarDuvidaParaEquipe(message, message.body.trim());
-        } else if (acoes.oferecerConfirmacaoEquipe) {
+            if (mensagemAceitaConfirmacao(message.body)) {
+                // Sem uma pendência recuperável, nunca envie apenas "sim" ao grupo.
+                respostaAna = 'Não consegui identificar qual informação o senhor deseja confirmar. Poderia repetir a pergunta, por favor?';
+            } else if (mensagemPedeConfirmacaoDireta(message.body)) {
+                await notificarDuvidaParaEquipe(message, message.body.trim());
+            } else {
+                // O modelo não pode decidir sozinho que uma dúvida será encaminhada.
+                controleConfirmacaoEquipe.registrarOferta(
+                    message.from,
+                    message.body.trim()
+                );
+                respostaAna = criarRespostaOfertaConfirmacao();
+            }
+        } else if (
+            acoes.oferecerConfirmacaoEquipe ||
+            respostaOfereceConfirmacao(respostaAna)
+        ) {
             controleConfirmacaoEquipe.registrarOferta(
                 message.from,
                 message.body.trim()
             );
+            respostaAna = criarRespostaOfertaConfirmacao();
         }
 
         const deveNotificarDelivery =
