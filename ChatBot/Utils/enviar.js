@@ -10,8 +10,9 @@ async function enviar(
 
     try {
 
-        if (!client.info)
-            return;
+        if (!client || !client.info) {
+            throw new Error('Cliente do WhatsApp não está conectado.');
+        }
 
         await delay(150);
 
@@ -23,10 +24,9 @@ async function enviar(
 
     } catch (err) {
 
-        console.error(
-            'Erro envio:',
-            err
-        );
+        console.error('Erro envio:', err.message || err);
+
+        throw err;
 
     }
 

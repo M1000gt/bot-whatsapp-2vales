@@ -1,6 +1,7 @@
 const OpenAI = require("openai");
 const fs = require("fs");
 const path = require("path");
+const { obterContextoDataBrasil } = require('../../core/utils/contextoDataBrasil');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
@@ -37,42 +38,25 @@ async function falarComAna(numero, mensagemCliente) {
 
    try {
 
-    const diasSemana = [
-        "domingo",
-        "segunda-feira",
-        "terça-feira",
-        "quarta-feira",
-        "quinta-feira",
-        "sexta-feira",
-        "sábado"
-    ];
-
-    const agora = new Date();
-
-    const diaSemana = diasSemana[agora.getDay()];
-
-    const amanha = new Date(agora);
-    amanha.setDate(agora.getDate() + 1);
-
-    const diaSemanaAmanha = diasSemana[amanha.getDay()];
-
-    const abertoHoje =
-        ["quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
-        .includes(diaSemana);
-
-    const abertoAmanha =
-        ["quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
-        .includes(diaSemanaAmanha);
+    const {
+        dataAtual,
+        horaAtual,
+        diaSemana,
+        abertoHoje,
+        dataAmanha,
+        diaSemanaAmanha,
+        abertoAmanha
+    } = obterContextoDataBrasil();
 
     const contextoDataHora = `
 DATA E HORA ATUAL DO SISTEMA:
-- Data atual: ${agora.toLocaleDateString('pt-BR')}
+- Data atual: ${dataAtual}
 - Dia da semana atual: ${diaSemana}
-- Hora atual: ${agora.toLocaleTimeString('pt-BR')}
+- Hora atual: ${horaAtual}
 - Restaurante aberto hoje: ${abertoHoje ? "SIM" : "NÃO"}
 
 REFERÊNCIA DE AMANHÃ:
-- Amanhã será: ${amanha.toLocaleDateString('pt-BR')}
+- Amanhã será: ${dataAmanha}
 - Dia da semana de amanhã: ${diaSemanaAmanha}
 - Restaurante aberto amanhã: ${abertoAmanha ? "SIM" : "NÃO"}
 `
@@ -84,9 +68,13 @@ REFERÊNCIA DE AMANHÃ:
 
         const resposta = await openai.chat.completions.create({
 
-            model: "gpt-4.1-mini",
+            model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
 
             temperature: 0.8,
+
+            max_completion_tokens: 500,
+
+            store: false,
 
             messages: [
 
@@ -110,8 +98,11 @@ ${PROMPT_ANA}
 
         });
 
-        const textoResposta =
-            resposta.choices[0].message.content;
+        const textoResposta = resposta.choices?.[0]?.message?.content?.trim();
+
+        if (!textoResposta) {
+            throw new Error('A OpenAI retornou uma resposta vazia.');
+        }
 
         // Salva usuário
         historicoConversas[numero].push({

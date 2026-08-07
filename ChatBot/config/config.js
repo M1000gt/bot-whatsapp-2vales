@@ -1,9 +1,10 @@
-module.exports = {
+const path = require('path');
 
-    grupoReservas:
+module.exports = {
+    grupoReservas: process.env.GRUPO_RESERVAS_ID ||
         '120363407529784204@g.us',
 
-    caminhoCardapio:
-        './Arquivos/Cardapio leve.pdf'
+    caminhoCardapio: process.env.CARDAPIO_PATH ||
+        path.join(__dirname, '..', 'Arquivos', 'Cardapio leve.pdf')
 
 };

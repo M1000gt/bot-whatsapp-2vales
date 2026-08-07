@@ -9,9 +9,13 @@ const enviar =
 require('./Utils/enviar');
 
 const { atendimentoAutomaticoAtivo } = require('./Utils/controleAtendimento');
-const { registrarEnvioAutomatico, processarMensagemEnviadaPeloNumero, atendimentoHumanoAtivo } = require('./Utils/handoffHumano');
+const { atendimentoHumanoAtivo } = require('./Utils/handoffHumano');
 
 const { registrarLogMensal } = require('./Utils/logMensal');
+const { interpretarRespostaAna } = require('../core/utils/acoesAna');
+const { classificarMensagem2Vales } = require('../core/utils/classificador2Vales');
+const { criarFilaPorChave } = require('../core/utils/filaPorChave');
+const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
 
 const menu =
 require('./Mensagens/menu');
@@ -38,7 +42,7 @@ const{
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        clientId: 'bot2vales' // 👈 EVITA CONFLITO DE SESSÃO NO PM2
+        clientId: process.env.WWEBJS_CLIENT_ID || 'bot2vales'
     }),
 
     puppeteer: {
@@ -89,8 +93,7 @@ const boasVindas = [
     'ola bom dia', 'ola boa tarde', 'ola boa noite',
     'olá bom dia', 'olá boa tarde', 'olá boa noite'
     ]
-const modoAna = {};
-const ultimaReservaEnviada = {};
+const filaMensagens = criarFilaPorChave();
 // ========================================
 
 // QR CODE
@@ -166,12 +169,7 @@ function dataHoraBrasil() {
 }
 
 
-function mascararTextoSensivel(texto = '') {
-    return String(texto)
-        .replace(/senha\s*[:=]\s*\S+/gi, 'senha: [OCULTA]')
-        .replace(/[\w.-]+\.pfx/gi, '[ARQUIVO PFX OCULTO]')
-        .replace(/\b\d{14}\b/g, '[CNPJ/CPF OCULTO]');
-}
+const mascararTextoSensivel = mascararDadosSensiveis;
 
 async function registrarConversaLimpa(message, origem, texto) {
     try {
@@ -184,7 +182,7 @@ async function registrarConversaLimpa(message, origem, texto) {
             nome = contato.pushname || contato.name || contato.shortName || 'Sem nome';
         } catch {}
 
-        const id = message.from || 'sem-id';
+        const id = mascararTextoSensivel(message.from || 'sem-id');
         const textoSeguro = mascararTextoSensivel(texto);
 
         const linha = `
@@ -208,76 +206,7 @@ Mensagem: ${textoSeguro}
 // ========================================
 
 function pareceMensagemAdministrativa(texto = '') {
-    const msgOriginal = String(texto || '').trim();
-
-    const msg = msgOriginal
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-
-    // CLIENTE / DELIVERY
-    // Pedido, entrega e delivery podem ser cliente querendo comprar.
-    // Essas palavras sozinhas NÃO podem bloquear a Ana.
-    const pareceClienteDelivery =
-        /\b(delivery|entrega|entregar|entregam|pedido para entrega|pedido pra entrega|fazer um pedido|fazer pedido|quero pedir|queria pedir|posso pedir|posso fazer um pedido|pedido para entregar|pedido pra entregar|entregar aqui|entrega aqui|boa esperanca|cuiaba|viagem)\b/i.test(msg);
-
-    // FORNECEDOR / ADMINISTRATIVO CLARO
-    // Aqui precisam existir sinais fortes de assunto interno, venda para o restaurante,
-    // nota, boleto, cobrança, fornecedor, representante, tabela de fornecedor etc.
-    const padroesAdministrativos = [
-        /\bfornecedor\b/i,
-        /\brepresentante\b/i,
-        /\bdistribuidor\b/i,
-        /\bsou fornecedor\b/i,
-        /\bsou representante\b/i,
-        /\bnota fiscal\b/i,
-        /\bnf\b/i,
-        /\bboleto\b/i,
-        /\bcobranca\b/i,
-        /\bcobrança\b/i,
-        /\bpagamento\b/i,
-        /\bcertificado\b/i,
-        /\bsenha\b/i,
-        /\bdocumento\b/i,
-        /\bcontrato\b/i,
-        /\bmercadoria\b/i,
-        /\bcotacao\b/i,
-        /\bcotação\b/i,
-        /\borcamento para voces\b/i,
-        /\borçamento para vocês\b/i,
-        /\bproduto para vender\b/i,
-        /\bproduto pra vender\b/i,
-        /\bvender para voces\b/i,
-        /\bvender pra voces\b/i,
-        /\bvender para vocês\b/i,
-        /\bposso mandar tabela\b/i,
-        /\btabela de preco\b/i,
-        /\btabela de preço\b/i,
-        /\btabela para voces\b/i,
-        /\btabela para vocês\b/i,
-        /\bpromocao de carne\b/i,
-        /\bpromoção de carne\b/i,
-        /\bpromocao de frango\b/i,
-        /\bpromoção de frango\b/i,
-        /\bpromocao de bebida\b/i,
-        /\bpromoção de bebida\b/i,
-        /\bpromocao de cerveja\b/i,
-        /\bpromoção de cerveja\b/i,
-        /\bpromocao de vinho\b/i,
-        /\bpromoção de vinho\b/i,
-        /\bentrega de mercadoria\b/i,
-        /\bretirada de mercadoria\b/i
-    ];
-
-    const administrativoClaro = padroesAdministrativos.some(regex => regex.test(msgOriginal) || regex.test(msg));
-
-    // Se for cliente falando de delivery, deixa a Ana responder,
-    // exceto se também tiver sinais claros de fornecedor/admin.
-    if (pareceClienteDelivery && !administrativoClaro) {
-        return false;
-    }
-
-    return administrativoClaro;
+    return classificarMensagem2Vales(texto).bloquearResposta;
 }
 
 async function notificarAdministrativo(message, texto) {
@@ -309,6 +238,7 @@ A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsáv
         await client.sendMessage(grupoReservas, aviso);
     } catch (error) {
         console.error('Erro ao notificar administrativo:', error.message);
+        throw error;
     }
 }
 
@@ -483,12 +413,6 @@ function contextoDeliveryAtivo(chatId) {
     return true;
 }
 
-function limparMarcadoresInternosAna(texto = '') {
-    return String(texto || '')
-        .replace(/\[\[PEDIDO_DELIVERY\]\]/g, '')
-        .trim();
-}
-
 async function notificarPedidoDelivery(message, textoCliente, respostaAna) {
     try {
         const chave = `${message.from}:${textoCliente}`.slice(0, 500);
@@ -541,41 +465,8 @@ ${respostaAna}
         contextosDeliveryAtivos.delete(message.from);
     } catch (error) {
         console.error('Erro ao notificar pedido delivery:', error.message);
+        throw error;
     }
-}
-
-
-
-// ========================================
-// HANDOFF DE TESTE / MANUAL POR CONVERSA
-// ========================================
-
-const handoffTesteConversas = new Map();
-const TEMPO_HANDOFF_TESTE_MS = 30 * 60 * 1000;
-
-function ativarHandoffTeste(chatId, minutos = 30) {
-    const expiraEm = Date.now() + minutos * 60 * 1000;
-    handoffTesteConversas.set(chatId, expiraEm);
-    console.log(`🧪 Handoff de teste ativado para ${chatId} por ${minutos} minutos.`);
-}
-
-function desativarHandoffTeste(chatId) {
-    handoffTesteConversas.delete(chatId);
-    console.log(`🧪 Handoff de teste desativado para ${chatId}.`);
-}
-
-function handoffTesteAtivo(chatId) {
-    const expiraEm = handoffTesteConversas.get(chatId);
-
-    if (!expiraEm) return false;
-
-    if (Date.now() > expiraEm) {
-        handoffTesteConversas.delete(chatId);
-        console.log(`✅ Handoff de teste expirou para ${chatId}.`);
-        return false;
-    }
-
-    return true;
 }
 
 
@@ -717,7 +608,7 @@ client.on('message_create', async (message) => {
 });
 
 
-client.on('message', async (message) => {
+async function processarMensagemRecebida(message) {
         if (message.fromMe) return;
         if (!message.from) return;
         if (message.from === 'status@broadcast') return;
@@ -728,6 +619,8 @@ client.on('message', async (message) => {
         if (message.from.endsWith('@newsletter')) return;
         if (message.from.endsWith('@g.us')) return;
         if (!message.body || !message.body.trim()) return;
+    let pararDigitando = null;
+
     try {
          if (!message.body) return;
 
@@ -745,25 +638,13 @@ client.on('message', async (message) => {
 
         const msg = message.body.toLowerCase().trim();
 
-          if (msg === '#teste-handoff') {
-              ativarHandoffTeste(message.from, 30);
-              await registrarConversaLimpa(message, 'SISTEMA', 'Handoff de teste ativado por comando secreto.');
-              return;
-          }
-
-          if (msg === '#fim-handoff') {
-              desativarHandoffTeste(message.from);
-              await registrarConversaLimpa(message, 'SISTEMA', 'Handoff de teste desativado por comando secreto.');
-              return;
-          }
-
           if (textoIniciaDelivery(message.body)) {
               marcarContextoDelivery(message.from);
           }
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
 
-        if (atendimentoHumanoAtivo(message.from) || handoffTesteAtivo(message.from) || handoffAutomaticoAtivo(message.from)) {
+        if (atendimentoHumanoAtivo(message.from) || handoffAutomaticoAtivo(message.from)) {
             await registrarConversaLimpa(message, 'SISTEMA', 'Atendimento humano ativo nesta conversa. Ana não respondeu para não falar por cima da equipe.');
             console.log('👤 Atendimento humano ativo. Ana não respondeu:', message.from);
             return;
@@ -779,64 +660,79 @@ client.on('message', async (message) => {
         // ANA COMO CÉREBRO PRINCIPAL
         // ========================================
 
-        const pararDigitando = await iniciarDigitando(message);
+        pararDigitando = await iniciarDigitando(message);
 
-        let respostaAna = await falarComAna(
+        const respostaOriginalAna = await falarComAna(
             message.from,
             message.body
         );
 
-        // ========================================
-        // MARCADORES DE AÇÃO
-        // ========================================
+        const resultadoAna = interpretarRespostaAna(respostaOriginalAna);
+        const respostaAna = resultadoAna.textoCliente;
+        const { acoes } = resultadoAna;
 
-        const deveEnviarCardapio =
-            respostaAna.includes('[[ENVIAR_CARDAPIO]]');
+        const deveEnviarCardapio = acoes.enviarCardapio;
+        const deveEnviarLocalizacao = acoes.enviarLocalizacao;
+        const deveChamarAtendente = acoes.chamarAtendente;
 
-        const deveEnviarLocalizacao =
-            respostaAna.includes('[[ENVIAR_LOCALIZACAO]]');
+        const deveNotificarDelivery =
+            acoes.pedidoDelivery ||
+            (
+                contextoDeliveryAtivo(message.from) &&
+                textoTemItensDePedido(message.body || '') &&
+                /(encaminh|confirm|pedido|delivery|entrega|equipe)/i.test(respostaAna)
+            );
 
-        const deveChamarAtendente =
-            respostaAna.includes('[[CHAMAR_ATENDENTE]]');
+        // As ações internas acontecem antes da confirmação ao cliente.
+        // Se o grupo não receber, o fluxo falha em vez de afirmar um encaminhamento inexistente.
+        if (deveNotificarDelivery) {
+            await notificarPedidoDelivery(message, message.body.trim(), respostaAna);
+        }
 
-        const reservaMatch = respostaAna.match(
-            /\[\[RESERVA_COMPLETA\]\]([\s\S]*?)\[\[\/RESERVA_COMPLETA\]\]/
-        );
+        if (deveChamarAtendente) {
+            await enviar(
+                client,
+                grupoReservas,
+`👨‍💼 CLIENTE SOLICITOU ATENDIMENTO HUMANO
 
-        // ========================================
-        // REMOVE MARCADORES DA RESPOSTA AO CLIENTE
-        // ========================================
+👤 Cliente:
+${message._data?.notifyName || 'Não informado'}
 
-        respostaAna = respostaAna
-            .replace(/\[\[ENVIAR_CARDAPIO\]\]/g, '')
-            .replace(/\[\[ENVIAR_LOCALIZACAO\]\]/g, '')
-            .replace(/\[\[CHAMAR_ATENDENTE\]\]/g, '')
-            .replace(
-                /\[\[RESERVA_COMPLETA\]\]([\s\S]*?)\[\[\/RESERVA_COMPLETA\]\]/g,
-                ''
-            )
-            .trim();
+📱 Número:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+Mensagem do cliente:
+${message.body}`
+            );
+        }
+
+        if (acoes.reservaCompleta) {
+            const dadosReserva = acoes.dadosReserva;
+
+            await enviar(
+                client,
+                grupoReservas,
+`📅 NOVA SOLICITAÇÃO DE RESERVA VIA ANA
+
+👤 Cliente:
+${message._data?.notifyName || 'Não informado'}
+
+📱 Número:
+${message.from}
+
+━━━━━━━━━━━━━━━
+
+${dadosReserva}`
+            );
+        }
 
         // ========================================
         // ENVIA RESPOSTA DA ANA AO CLIENTE
         // ========================================
 
         if (respostaAna) {
-            const tinhaMarcadorDelivery = respostaAna.includes('[[PEDIDO_DELIVERY]]');
-            respostaAna = limparMarcadoresInternosAna(respostaAna);
-
-            const deveNotificarDelivery =
-                tinhaMarcadorDelivery ||
-                (
-                    contextoDeliveryAtivo(message.from) &&
-                    textoTemItensDePedido(message.body || '') &&
-                    /(encaminh|confirm|pedido|delivery|entrega|equipe)/i.test(respostaAna)
-                );
-
-            if (deveNotificarDelivery) {
-                await notificarPedidoDelivery(message, message.body.trim(), respostaAna);
-            }
-
             await registrarConversaLimpa(message, 'ANA', respostaAna);
             await enviar(
                 client,
@@ -844,8 +740,6 @@ client.on('message', async (message) => {
                 respostaAna
             );
         }
-
-        await pararDigitando();
 
         // ========================================
         // ENVIA CARDÁPIO SE A ANA PEDIR
@@ -876,56 +770,24 @@ client.on('message', async (message) => {
             );
         }
 
-        // ========================================
-        // AVISA O GRUPO SE PEDIR ATENDENTE
-        // ========================================
-
-        if (deveChamarAtendente) {
-            await enviar(
-                client,
-                grupoReservas,
-`👨‍💼 CLIENTE SOLICITOU ATENDIMENTO HUMANO
-
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
-
-━━━━━━━━━━━━━━━
-
-Mensagem do cliente:
-${message.body}`
-            );
-        }
-
-        // ========================================
-        // ENVIA RESERVA PARA O GRUPO
-        // ========================================
-
-        if (reservaMatch) {
-            const dadosReserva = reservaMatch[1].trim();
-
-            await enviar(
-                client,
-                grupoReservas,
-`📅 NOVA SOLICITAÇÃO DE RESERVA VIA ANA
-
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
-
-━━━━━━━━━━━━━━━
-
-${dadosReserva}`
-            );
-        }
-
     } catch (err) {
         console.error('❌ Erro geral:', err);
+    } finally {
+        if (pararDigitando) {
+            await pararDigitando();
+        }
     }
+}
+
+client.on('message', (message) => {
+    const chatId = message && message.from;
+
+    if (!chatId) return;
+
+    filaMensagens.executar(chatId, () => processarMensagemRecebida(message))
+        .catch(error => {
+            console.error('❌ Erro na fila da conversa:', error.message);
+        });
 });
 
 // ========================================

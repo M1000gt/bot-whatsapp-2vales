@@ -12,7 +12,7 @@
   "version": "1.0.0",
   "main": "chatbot-backup.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test testes/unit/*.test.js"
   },
   "keywords": [],
   "author": "",
