@@ -22,12 +22,17 @@ const {
     criarRespostaBloqueioDeliveryBoaLembranca
 } = require('../core/utils/boaLembranca');
 const {
+    consolidarDadosPedidoDelivery,
     criarRespostaInicioPedidoDelivery,
     criarRespostaRecebimentoPedidoDelivery,
     deveSolicitarDadosIniciaisDelivery,
     mensagemPareceDadosDePedido,
     textoTemItemDePedido
 } = require('../core/utils/pedidoDelivery');
+const {
+    criarAvisoPedidoDelivery,
+    resolverContatoExibicao
+} = require('../core/utils/avisoPedidoDelivery');
 const {
     criarControleConfirmacaoEquipe,
     criarRespostaOfertaConfirmacao,
@@ -483,7 +488,12 @@ function contextoDeliveryAtivo(chatId) {
     return true;
 }
 
-async function notificarPedidoDelivery(message, textoCliente, respostaAna) {
+async function notificarPedidoDelivery(
+    message,
+    textoCliente,
+    respostaAna,
+    dadosPedidoDelivery
+) {
     try {
         const chave = `${message.from}:${textoCliente}`.slice(0, 500);
 
@@ -499,35 +509,22 @@ async function notificarPedidoDelivery(message, textoCliente, respostaAna) {
         }, 60 * 1000);
 
         const contato = await message.getContact();
-        const nome = contato.pushname || contato.name || 'Cliente';
-
-        const aviso = `🛵 NOVO PEDIDO DELIVERY — 2VALES
-
-👤 Cliente:
-${nome}
-
-📱 Contato/ID:
-${message.from}
-
-━━━━━━━━━━━━━━━
-
-Mensagem recebida:
-${textoCliente}
-
-━━━━━━━━━━━━━━━
-
-Resumo da Ana:
-${respostaAna}
-
-━━━━━━━━━━━━━━━
-
-⚠️ A equipe deve confirmar:
-- disponibilidade do prato;
-- taxa de entrega;
-- tempo de entrega;
-- localidade/área;
-- forma de pagamento;
-- fechamento do pedido.`;
+        const nome = contato.pushname || contato.name || contato.shortName || 'Cliente';
+        const contatoExibicao = await resolverContatoExibicao(
+            client,
+            message.from
+        );
+        const dadosConsolidados = consolidarDadosPedidoDelivery(
+            dadosPedidoDelivery,
+            textoCliente
+        );
+        const aviso = criarAvisoPedidoDelivery({
+            nomeContato: nome,
+            contato: contatoExibicao,
+            dadosPedido: dadosConsolidados,
+            textoCliente,
+            respostaAna
+        });
 
         await client.sendMessage(grupoReservas, aviso);
         console.log('🛵 Pedido delivery enviado ao grupo:', message.from);
@@ -897,7 +894,12 @@ async function processarMensagemRecebida(message) {
         // As ações internas acontecem antes da confirmação ao cliente.
         // Se o grupo não receber, o fluxo falha em vez de afirmar um encaminhamento inexistente.
         if (deveNotificarDelivery) {
-            await notificarPedidoDelivery(message, message.body.trim(), respostaAna);
+            await notificarPedidoDelivery(
+                message,
+                message.body.trim(),
+                respostaAna,
+                acoes.dadosPedidoDelivery
+            );
         }
 
         if (deveChamarAtendente) {

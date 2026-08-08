@@ -20,3 +20,12 @@ test('pedido delivery e pedido para entrega abrem o mesmo fluxo', () => {
     assert.match(regras, /significam a mesma intenção/i);
     assert.match(regras, /não significa, sozinha, que o cliente já iniciou um pedido/i);
 });
+
+test('pedido delivery usa bloco estruturado como nas reservas', () => {
+    assert.match(regras, /bloco interno estruturado/i);
+    assert.match(regras, /\[\[PEDIDO_DELIVERY\]\][\s\S]*Nome:/i);
+    assert.match(regras, /Localidade:[\s\S]*Pedido:[\s\S]*Acompanhamento:/i);
+    assert.match(regras, /Quantidade:[\s\S]*Observações:/i);
+    assert.match(regras, /\[\[\/PEDIDO_DELIVERY\]\]/i);
+    assert.match(regras, /Nunca use apenas o marcador solto/i);
+});

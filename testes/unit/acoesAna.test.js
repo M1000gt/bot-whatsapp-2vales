@@ -2,9 +2,48 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+    extrairCamposPedidoDelivery,
     interpretarRespostaAna,
     reservaTemDadosMinimos
 } = require('../../core/utils/acoesAna');
+
+test('extrai pedido delivery estruturado e não vaza o bloco interno', () => {
+    const resposta = `Recebi o pedido e vou encaminhar.
+[[PEDIDO_DELIVERY]]
+Nome: Gustavo
+Localidade: Vale da Boa Esperança, Sítio 1
+Pedido: 1 filé aux framboises, dividido, ao ponto
+Acompanhamento: batata roesti
+Quantidade: 1
+Observações: dividido
+[[/PEDIDO_DELIVERY]]`;
+    const resultado = interpretarRespostaAna(resposta);
+
+    assert.equal(resultado.acoes.pedidoDelivery, true);
+    assert.equal(resultado.acoes.dadosPedidoDelivery.nome, 'Gustavo');
+    assert.equal(
+        resultado.acoes.dadosPedidoDelivery.localidade,
+        'Vale da Boa Esperança, Sítio 1'
+    );
+    assert.equal(resultado.acoes.dadosPedidoDelivery.acompanhamento, 'batata roesti');
+    assert.equal(resultado.textoCliente, 'Recebi o pedido e vou encaminhar.');
+    assert.doesNotMatch(resultado.textoCliente, /PEDIDO_DELIVERY|Localidade:/i);
+    assert.deepEqual(
+        extrairCamposPedidoDelivery('Prato: massa\nEndereço: Itaipava'),
+        { pedido: 'massa', localidade: 'Itaipava' }
+    );
+});
+
+test('bloco delivery incompleto também não vaza conteúdo interno', () => {
+    const resultado = interpretarRespostaAna(`Vou encaminhar o pedido.
+[[PEDIDO_DELIVERY]]
+Nome: Gustavo
+Localidade: Itaipava`);
+
+    assert.equal(resultado.textoCliente, 'Vou encaminhar o pedido.');
+    assert.equal(resultado.acoes.pedidoDelivery, true);
+    assert.equal(resultado.acoes.dadosPedidoDelivery, null);
+});
 
 test('remove marcadores internos e preserva o texto do cliente', () => {
     const resultado = interpretarRespostaAna(

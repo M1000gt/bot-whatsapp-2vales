@@ -2,13 +2,44 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+    consolidarDadosPedidoDelivery,
     criarRespostaInicioPedidoDelivery,
     criarRespostaRecebimentoPedidoDelivery,
     deveSolicitarDadosIniciaisDelivery,
+    extrairDadosPedidoDeliveryDaMensagem,
     mensagemPareceDadosDePedido,
     mensagemSolicitaInicioPedidoDelivery,
     textoTemItemDePedido
 } = require('../../core/utils/pedidoDelivery');
+
+test('separa os dados da mensagem natural observada na homologação', () => {
+    const dados = extrairDadosPedidoDeliveryDaMensagem(
+        'gustavo vale da boa esperança sitio 1 file framboise com rosti dividido ao ponto'
+    );
+
+    assert.equal(dados.nome, 'gustavo');
+    assert.equal(dados.localidade, 'vale da boa esperança sitio 1');
+    assert.equal(dados.pedido, 'file framboise dividido ao ponto');
+    assert.equal(dados.acompanhamento, 'rosti');
+    assert.equal(dados.quantidade, undefined);
+});
+
+test('preserva dados estruturados e usa a mensagem somente para campos ausentes', () => {
+    const dados = consolidarDadosPedidoDelivery(
+        {
+            nome: 'Gustavo Teste',
+            pedido: 'Filé aux framboises, ao ponto',
+            acompanhamento: 'Não informado'
+        },
+        'gustavo vale da boa esperança 2 filet framboises com roesti ao ponto'
+    );
+
+    assert.equal(dados.nome, 'Gustavo Teste');
+    assert.equal(dados.localidade, 'vale da boa esperança');
+    assert.equal(dados.pedido, 'Filé aux framboises, ao ponto');
+    assert.equal(dados.acompanhamento, 'roesti');
+    assert.equal(dados.quantidade, '2');
+});
 
 test('reconhece pedido delivery e pedido para entrega como a mesma intenção', () => {
     assert.equal(mensagemSolicitaInicioPedidoDelivery('quero fazer um pedido delivery'), true);
