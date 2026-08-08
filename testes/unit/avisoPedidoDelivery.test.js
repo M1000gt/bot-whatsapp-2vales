@@ -2,45 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-    criarAvisoPedidoDelivery,
-    formatarTelefone,
-    resolverContatoExibicao
+    criarAvisoPedidoDelivery
 } = require('../../core/utils/avisoPedidoDelivery');
-
-test('formata números brasileiros recebidos como c.us', () => {
-    assert.equal(formatarTelefone('5524999999999@c.us'), '+55 (24) 99999-9999');
-    assert.equal(formatarTelefone('552422222222@c.us'), '+55 (24) 2222-2222');
-});
-
-test('converte LID em telefone quando o WhatsApp disponibiliza a relação', async () => {
-    const client = {
-        getContactLidAndPhone: async () => [{
-            lid: '227062824616174@lid',
-            pn: '5524999999999@c.us'
-        }],
-        getFormattedNumber: async () => '+55 24 99999-9999'
-    };
-    const contato = await resolverContatoExibicao(
-        client,
-        '227062824616174@lid'
-    );
-
-    assert.equal(contato.telefone, '+55 24 99999-9999');
-    assert.equal(contato.idTecnico, null);
-});
-
-test('mantém o LID apenas como fallback quando o telefone não está disponível', async () => {
-    const client = {
-        getContactLidAndPhone: async () => []
-    };
-    const contato = await resolverContatoExibicao(
-        client,
-        '227062824616174@lid'
-    );
-
-    assert.equal(contato.telefone, 'Não disponibilizado pelo WhatsApp');
-    assert.equal(contato.idTecnico, '227062824616174@lid');
-});
 
 test('aviso mostra ficha organizada antes da mensagem original e do resumo', () => {
     const aviso = criarAvisoPedidoDelivery({

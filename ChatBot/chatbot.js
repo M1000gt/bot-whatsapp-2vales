@@ -30,9 +30,12 @@ const {
     textoTemItemDePedido
 } = require('../core/utils/pedidoDelivery');
 const {
-    criarAvisoPedidoDelivery,
-    resolverContatoExibicao
+    criarAvisoPedidoDelivery
 } = require('../core/utils/avisoPedidoDelivery');
+const {
+    criarBlocoContatoAviso,
+    obterContatoParaAviso
+} = require('../core/utils/contatoWhatsApp');
 const {
     criarControleConfirmacaoEquipe,
     criarRespostaOfertaConfirmacao,
@@ -247,22 +250,18 @@ function pareceMensagemAdministrativa(texto = '') {
     return classificarMensagem2Vales(texto).bloquearResposta;
 }
 
+async function obterBlocoContatoAviso(message, rotuloNome = 'Cliente') {
+    const contato = await obterContatoParaAviso(client, message);
+    return criarBlocoContatoAviso(contato, rotuloNome);
+}
+
 async function notificarAdministrativo(message, texto) {
     try {
-        let nome = 'Sem nome';
-
-        try {
-            const contato = await message.getContact();
-            nome = contato.pushname || contato.name || contato.shortName || 'Sem nome';
-        } catch {}
+        const blocoContato = await obterBlocoContatoAviso(message, 'Contato');
 
         const aviso = `📌 MENSAGEM ADMINISTRATIVA / FORNECEDOR
 
-👤 Nome:
-${nome}
-
-📱 Contato/ID:
-${message.from}
+${blocoContato}
 
 ━━━━━━━━━━━━━━━
 
@@ -281,16 +280,14 @@ A Ana não respondeu esse contato. Mensagem encaminhada para a equipe responsáv
 }
 
 async function notificarDuvidaParaEquipe(message, perguntaOriginal) {
+    const blocoContato = await obterBlocoContatoAviso(message);
+
     await enviar(
         client,
         grupoReservas,
 `❓ CLIENTE PEDIU CONFIRMAÇÃO DE UMA INFORMAÇÃO
 
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
+${blocoContato}
 
 ━━━━━━━━━━━━━━━
 
@@ -508,19 +505,14 @@ async function notificarPedidoDelivery(
             avisosDeliveryRecentes.delete(chave);
         }, 60 * 1000);
 
-        const contato = await message.getContact();
-        const nome = contato.pushname || contato.name || contato.shortName || 'Cliente';
-        const contatoExibicao = await resolverContatoExibicao(
-            client,
-            message.from
-        );
+        const contatoAviso = await obterContatoParaAviso(client, message);
         const dadosConsolidados = consolidarDadosPedidoDelivery(
             dadosPedidoDelivery,
             textoCliente
         );
         const aviso = criarAvisoPedidoDelivery({
-            nomeContato: nome,
-            contato: contatoExibicao,
+            nomeContato: contatoAviso.nome,
+            contato: contatoAviso,
             dadosPedido: dadosConsolidados,
             textoCliente,
             respostaAna
@@ -903,16 +895,14 @@ async function processarMensagemRecebida(message) {
         }
 
         if (deveChamarAtendente) {
+            const blocoContato = await obterBlocoContatoAviso(message);
+
             await enviar(
                 client,
                 grupoReservas,
 `👨‍💼 CLIENTE SOLICITOU ATENDIMENTO HUMANO
 
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
+${blocoContato}
 
 ━━━━━━━━━━━━━━━
 
@@ -939,22 +929,22 @@ ${message.body}`
                 );
 
                 if (decisaoReserva.tipo === 'nova') {
+                    const blocoContato = await obterBlocoContatoAviso(message);
+
                     await enviar(
                         client,
                         grupoReservas,
 `📅 NOVA SOLICITAÇÃO DE RESERVA VIA ANA
 
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
+${blocoContato}
 
 ━━━━━━━━━━━━━━━
 
 ${dadosReserva}`
                     );
                 } else if (decisaoReserva.tipo === 'atualizacao') {
+                    const blocoContato = await obterBlocoContatoAviso(message);
+
                     await enviar(
                         client,
                         grupoReservas,
@@ -962,11 +952,7 @@ ${dadosReserva}`
 
 ⚠️ Esta atualização substitui os dados enviados anteriormente.
 
-👤 Cliente:
-${message._data?.notifyName || 'Não informado'}
-
-📱 Número:
-${message.from}
+${blocoContato}
 
 ━━━━━━━━━━━━━━━
 
