@@ -10,7 +10,7 @@
   },
   "name": "bot-whatsapp-2vales",
   "version": "1.0.0",
-  "main": "chatbot-backup.js",
+  "main": "ChatBot/chatbot.js",
   "scripts": {
     "test": "node --test testes/unit/*.test.js"
   },

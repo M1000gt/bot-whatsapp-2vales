@@ -3,11 +3,25 @@ function normalizarTexto(texto = '') {
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
         .trim();
 }
 
+function escaparRegex(texto = '') {
+    return String(texto).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function criarPadraoTermo(termo = '') {
+    const palavras = normalizarTexto(termo)
+        .split(' ')
+        .filter(Boolean)
+        .map(escaparRegex);
+
+    return new RegExp(`\\b${palavras.join('\\s+')}\\b`);
+}
+
 function contemAlguma(texto, termos) {
-    return termos.some(termo => texto.includes(termo));
+    return termos.some(termo => criarPadraoTermo(termo).test(texto));
 }
 
 function classificarMensagem(textoOriginal = '') {

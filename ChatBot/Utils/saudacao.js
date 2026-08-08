@@ -1,6 +1,7 @@
-function saudacao() {
+const { obterHoraBrasil } = require('../../core/utils/dataHoraBrasil');
 
-    const hora = new Date().getHours();
+function saudacao(data = new Date()) {
+    const hora = obterHoraBrasil(data);
 
     if (hora < 12)
         return 'Olá, bom dia! ☀️';

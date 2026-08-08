@@ -15,6 +15,7 @@ const { registrarLogMensal } = require('./Utils/logMensal');
 const { interpretarRespostaAna } = require('../core/utils/acoesAna');
 const { classificarMensagem2Vales } = require('../core/utils/classificador2Vales');
 const { criarFilaPorChave } = require('../core/utils/filaPorChave');
+const { dataHoraBrasil } = require('../core/utils/dataHoraBrasil');
 const { mascararDadosSensiveis } = require('../core/utils/mascararDadosSensiveis');
 const { mensagemAutorizaEnvioCardapio } = require('../core/utils/intencaoCardapio');
 const {
@@ -113,15 +114,6 @@ process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
 // ========================================
-function saudacao() {
-    const hora = new Date().getHours();
-
-    if (hora < 12) return 'Olá, bom dia senhores! ☀️';
-    if (hora < 18) return 'Olá, boa tarde senhores! 🌤️';
-    return 'Olá, boa noite senhores! 🌙';
-}
-
-// ========================================
 // PALAVRAS MENU
 // ========================================
 
@@ -185,30 +177,6 @@ const fsLog = require('fs');
 const pathLog = require('path');
 
 const conversaLogPath = pathLog.join(__dirname, 'logs', 'conversas.log');
-
-function dataHoraBrasil() {
-    const partes = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).formatToParts(new Date());
-
-    const mapa = {};
-
-    for (const parte of partes) {
-        if (parte.type !== 'literal') {
-            mapa[parte.type] = parte.value;
-        }
-    }
-
-    return `${mapa.day}/${mapa.month}/${mapa.year}, ${mapa.hour}:${mapa.minute}:${mapa.second}`;
-}
-
 
 const mascararTextoSensivel = mascararDadosSensiveis;
 
@@ -696,14 +664,6 @@ async function processarMensagemRecebida(message) {
       ) return;
 
         const msg = message.body.toLowerCase().trim();
-        const contextoReservaAtualizado = contextoReservaCliente.atualizar(
-            message.from,
-            message.body
-        );
-
-          if (textoIniciaDelivery(message.body)) {
-              marcarContextoDelivery(message.from);
-          }
 
         await registrarConversaLimpa(message, 'CLIENTE', message.body.trim());
 
@@ -717,6 +677,15 @@ async function processarMensagemRecebida(message) {
             await registrarConversaLimpa(message, 'ADMIN/FORNECEDOR BLOQUEADO', msg);
             await notificarAdministrativo(message, msg);
             return;
+        }
+
+        const contextoReservaAtualizado = contextoReservaCliente.atualizar(
+            message.from,
+            message.body
+        );
+
+        if (textoIniciaDelivery(message.body)) {
+            marcarContextoDelivery(message.from);
         }
 
         if (/\breserv/i.test(msg) && contextoReservaAtualizado.dataResolvida) {
