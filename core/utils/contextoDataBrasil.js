@@ -58,6 +58,42 @@ function normalizarDiaSemana(diaSemana = '') {
     return aliases[dia] || null;
 }
 
+function normalizarTextoData(texto = '') {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function detectarDiaSemanaMencionado(texto = '') {
+    const mensagem = normalizarTextoData(texto);
+    const correspondencias = mensagem.matchAll(
+        /\b(segunda(?:-feira)?|terca(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|sabado|domingo)\b/g
+    );
+
+    for (const correspondencia of correspondencias) {
+        const valor = correspondencia[1];
+        const trechoPosterior = mensagem.slice(
+            correspondencia.index + valor.length
+        );
+
+        // Em "segunda ocorrência" e "segunda opção", segunda é ordinal,
+        // não uma menção à segunda-feira.
+        if (
+            valor === 'segunda' &&
+            /^\s+(?:ocorrencia|opcao)\b/.test(trechoPosterior)
+        ) {
+            continue;
+        }
+
+        return normalizarDiaSemana(valor);
+    }
+
+    return null;
+}
+
 function obterPartes(data) {
     const partes = new Intl.DateTimeFormat('pt-BR', {
         timeZone: FUSO_BRASIL,
@@ -130,12 +166,7 @@ function descreverDataResolvida(data, dataBase, origem) {
 }
 
 function resolverDataMencionada(texto = '', dataBase = new Date()) {
-    const mensagem = String(texto || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+    const mensagem = normalizarTextoData(texto);
 
     if (!mensagem) return null;
 
@@ -282,14 +313,23 @@ function resolverDataMencionada(texto = '', dataBase = new Date()) {
 
     if (diaSemana) {
         const diaInformado = diaSemana[1];
+        const outroDiaSemana = new RegExp(
+            `(?:\\boutr[oa]\\s+${diaInformado}\\b|` +
+            `\\b${diaInformado}\\s+(?:seguinte|da\\s+outra\\s+semana)\\b|` +
+            `\\bsem\\s+ser\\b.{0,50}\\b${diaInformado}\\b.{0,30}\\boutr[oa]\\b)`,
+            'i'
+        ).test(mensagem);
         const estritamenteFutura = new RegExp(
             `(?:proxim[oa]\\s+${diaInformado}|${diaInformado}\\s+que\\s+vem)`,
             'i'
-        ).test(mensagem);
+        ).test(mensagem) && !outroDiaSemana;
         const ocorrencia = obterProximaOcorrenciaDiaSemana(
             diaInformado,
             dataBase,
-            { estritamenteFutura }
+            {
+                estritamenteFutura,
+                pularOcorrencias: outroDiaSemana ? 1 : 0
+            }
         );
 
         return ocorrencia
@@ -297,7 +337,9 @@ function resolverDataMencionada(texto = '', dataBase = new Date()) {
                 encontrada: true,
                 valida: true,
                 passada: false,
-                origem: estritamenteFutura ? 'proximo-dia-semana' : 'dia-semana',
+                origem: outroDiaSemana
+                    ? 'outro-dia-semana'
+                    : (estritamenteFutura ? 'proximo-dia-semana' : 'dia-semana'),
                 ...ocorrencia
             }
             : null;
@@ -309,7 +351,10 @@ function resolverDataMencionada(texto = '', dataBase = new Date()) {
 function obterProximaOcorrenciaDiaSemana(
     diaSemana,
     data = new Date(),
-    { estritamenteFutura = false } = {}
+    {
+        estritamenteFutura = false,
+        pularOcorrencias = 0
+    } = {}
 ) {
     const alvo = normalizarDiaSemana(diaSemana);
 
@@ -323,6 +368,11 @@ function obterProximaOcorrenciaDiaSemana(
     if (estritamenteFutura && diferenca === 0) {
         diferenca = 7;
     }
+
+    const quantidadePulos = Number.isInteger(pularOcorrencias) && pularOcorrencias > 0
+        ? pularOcorrencias
+        : 0;
+    diferenca += quantidadePulos * 7;
 
     const ocorrencia = obterPartes(adicionarDiasNaDataBrasil(data, diferenca));
 
@@ -370,11 +420,12 @@ function obterContextoDataBrasil(data = new Date()) {
         diaSemanaAmanha: amanha.weekday,
         abertoAmanha: DIAS_ABERTOS.has(amanha.weekday),
         horarioAmanha: obterHorarioDoDia(amanha.weekday),
-        calendarioProximosDias: obterCalendarioProximosDias(data)
+        calendarioProximosDias: obterCalendarioProximosDias(data, 15)
     };
 }
 
 module.exports = {
+    detectarDiaSemanaMencionado,
     FUSO_BRASIL,
     HORARIOS_POR_DIA,
     ORDEM_DIAS_SEMANA,

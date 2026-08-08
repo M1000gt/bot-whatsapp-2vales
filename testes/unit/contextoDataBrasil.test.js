@@ -109,3 +109,121 @@ test('marca segunda e terça como dias fechados', () => {
     assert.equal(resultado.aberto, false);
     assert.equal(resultado.horario, 'FECHADO');
 });
+
+test('distingue este domingo do outro domingo sem inverter as datas', () => {
+    const sabado = new Date('2026-08-08T15:00:00.000Z');
+
+    assert.equal(
+        resolverDataMencionada('domingo que vem', sabado).data,
+        '09/08/2026'
+    );
+    assert.equal(
+        resolverDataMencionada('no caso no outro domingo', sabado).data,
+        '16/08/2026'
+    );
+    assert.equal(
+        resolverDataMencionada('sem ser nesse domingo, no outro', sabado).data,
+        '16/08/2026'
+    );
+    assert.equal(
+        resolverDataMencionada('domingo da outra semana', sabado).data,
+        '16/08/2026'
+    );
+    assert.equal(
+        resolverDataMencionada('domingo seguinte', sabado).data,
+        '16/08/2026'
+    );
+});
+
+test('aplica primeira e segunda ocorrência a todos os dias da semana', async t => {
+    const sabado = new Date('2026-08-08T15:00:00.000Z');
+    const casos = [
+        ['domingo', '09/08/2026', '16/08/2026', true],
+        ['segunda-feira', '10/08/2026', '17/08/2026', false],
+        ['terça-feira', '11/08/2026', '18/08/2026', false],
+        ['quarta-feira', '12/08/2026', '19/08/2026', true],
+        ['quinta-feira', '13/08/2026', '20/08/2026', true],
+        ['sexta-feira', '14/08/2026', '21/08/2026', true],
+        ['sábado', '08/08/2026', '15/08/2026', true]
+    ];
+
+    for (const [dia, primeira, segunda, aberto] of casos) {
+        await t.test(dia, () => {
+            const ocorrenciaInicial = resolverDataMencionada(dia, sabado);
+            const outraOcorrencia = resolverDataMencionada(`na outra ${dia}`, sabado);
+            const ocorrenciaDaOutraSemana = resolverDataMencionada(
+                `${dia} da outra semana`,
+                sabado
+            );
+            const correcaoNatural = resolverDataMencionada(
+                `sem ser nessa ${dia}, na outra`,
+                sabado
+            );
+
+            assert.equal(ocorrenciaInicial.data, primeira);
+            assert.equal(ocorrenciaInicial.aberto, aberto);
+            assert.equal(outraOcorrencia.data, segunda);
+            assert.equal(outraOcorrencia.origem, 'outro-dia-semana');
+            assert.equal(ocorrenciaDaOutraSemana.data, segunda);
+            assert.equal(correcaoNatural.data, segunda);
+        });
+    }
+});
+
+test('diferencia dia que vem de outro dia quando hoje já é o dia citado', () => {
+    const sabado = new Date('2026-08-08T15:00:00.000Z');
+
+    assert.equal(resolverDataMencionada('sábado', sabado).data, '08/08/2026');
+    assert.equal(resolverDataMencionada('sábado que vem', sabado).data, '15/08/2026');
+    assert.equal(resolverDataMencionada('outro sábado', sabado).data, '15/08/2026');
+});
+
+test('segunda ocorrência atravessa mês e ano sem regredir', () => {
+    const domingo = new Date('2026-12-27T15:00:00.000Z');
+
+    assert.equal(
+        resolverDataMencionada('quinta-feira', domingo).data,
+        '31/12/2026'
+    );
+    assert.equal(
+        resolverDataMencionada('outra quinta-feira', domingo).data,
+        '07/01/2027'
+    );
+});
+
+test('calendário oficial inclui duas semanas completas', () => {
+    const sabado = new Date('2026-08-08T15:00:00.000Z');
+    const contexto = obterContextoDataBrasil(sabado);
+
+    assert.equal(contexto.calendarioProximosDias.length, 15);
+    assert.equal(contexto.calendarioProximosDias[0].data, '08/08/2026');
+    assert.ok(
+        contexto.calendarioProximosDias.some(dia => dia.data === '16/08/2026')
+    );
+});
+
+test('janela de 15 dias é móvel e não expira', () => {
+    const primeiraData = obterContextoDataBrasil(
+        new Date('2026-08-08T15:00:00.000Z')
+    );
+    const dataPosterior = obterContextoDataBrasil(
+        new Date('2026-08-20T15:00:00.000Z')
+    );
+
+    assert.equal(primeiraData.calendarioProximosDias[0].data, '08/08/2026');
+    assert.equal(dataPosterior.calendarioProximosDias[0].data, '20/08/2026');
+    assert.equal(dataPosterior.calendarioProximosDias.at(-1).data, '03/09/2026');
+});
+
+test('resolve data explícita muito além da janela mostrada à IA', () => {
+    const sabado = new Date('2026-08-08T15:00:00.000Z');
+    const resultado = resolverDataMencionada(
+        'quero reservar para 15/11/2026',
+        sabado
+    );
+
+    assert.equal(resultado.data, '15/11/2026');
+    assert.equal(resultado.diaSemana, 'domingo');
+    assert.equal(resultado.passada, false);
+    assert.equal(resultado.valida, true);
+});

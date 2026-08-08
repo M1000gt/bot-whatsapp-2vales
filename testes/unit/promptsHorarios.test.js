@@ -36,6 +36,19 @@ test('prompt usa calendário futuro e proíbe data passada em nova reserva', () 
 
     assert.match(regras, /primeira ocorrência que seja hoje ou futura/i);
     assert.match(regras, /Nunca atribua à reserva uma data que já passou/i);
-    assert.match(ana, /CALENDÁRIO OFICIAL — HOJE E PRÓXIMOS 7 DIAS/i);
+    assert.match(ana, /CALENDÁRIO OFICIAL — HOJE E PRÓXIMOS 14 DIAS/i);
     assert.match(ana, /Nunca escolha uma data que já passou/i);
+});
+
+test('prompt diferencia este domingo do outro domingo', () => {
+    const regras = fs.readFileSync(regrasPath, 'utf8');
+    const ana = fs.readFileSync(anaPath, 'utf8');
+
+    assert.match(regras, /outro domingo/i);
+    assert.match(regras, /outra quinta/i);
+    assert.match(regras, /todos os sete dias/i);
+    assert.match(regras, /ocorrência imediatamente posterior/i);
+    assert.match(regras, /nunca pode voltar da segunda ocorrência para a primeira/i);
+    assert.match(ana, /PRÓXIMOS 14 DIAS/i);
+    assert.match(ana, /todos os sete dias/i);
 });

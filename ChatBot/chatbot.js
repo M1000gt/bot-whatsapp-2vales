@@ -46,7 +46,9 @@ const {
 } = require('../core/utils/confirmacaoEquipe');
 const {
     criarContextoReservaCliente,
+    criarRespostaCorrecaoDataRelativa,
     criarRespostaDataReservaInvalida,
+    mensagemPareceReservaComDadosSuficientes,
     validarDataResolvidaParaReserva
 } = require('../core/utils/contextoReservaCliente');
 const {
@@ -73,7 +75,8 @@ const {
     caminhoCardapio
 } = require('./config/config');
 const{
-    falarComAna
+    falarComAna,
+    registrarInteracaoAna
 } = require('./ana/Ana')
 // ========================================
 // CLIENT (VPS STABLE MODE)
@@ -661,7 +664,7 @@ async function processarMensagemRecebida(message) {
       if (
     !message.from.endsWith('@c.us') &&
     !message.from.endsWith('@lid')
-      ) return;
+        ) return;
 
         const msg = message.body.toLowerCase().trim();
 
@@ -688,7 +691,10 @@ async function processarMensagemRecebida(message) {
             marcarContextoDelivery(message.from);
         }
 
-        if (/\breserv/i.test(msg) && contextoReservaAtualizado.dataResolvida) {
+        if (
+            (/\breserv/i.test(msg) || contextoReservaAtualizado.operacaoDataRelativa) &&
+            contextoReservaAtualizado.dataResolvida
+        ) {
             const validacaoDataImediata = validarDataResolvidaParaReserva(
                 contextoReservaAtualizado.dataResolvida
             );
@@ -704,10 +710,79 @@ async function processarMensagemRecebida(message) {
                     pararDigitando = null;
                 }
 
+                contextoReservaCliente.limparData(message.from);
+                registrarInteracaoAna(
+                    message.from,
+                    message.body,
+                    respostaDataInvalida
+                );
                 await registrarConversaLimpa(message, 'ANA', respostaDataInvalida);
                 await enviar(client, message.from, respostaDataInvalida);
                 return;
             }
+        }
+
+        if (
+            contextoReservaAtualizado.operacaoDataRelativa &&
+            !mensagemPareceReservaComDadosSuficientes(message.body)
+        ) {
+            pararDigitando = await iniciarDigitando(message);
+            const reservaRecente = controleEncaminhamentoReserva.obterReservaRecente(
+                message.from
+            );
+            let respostaCorrecaoData;
+
+            if (reservaRecente) {
+                const reservaAtualizada = contextoReservaCliente.reconciliar(
+                    message.from,
+                    reservaRecente
+                );
+                const decisaoAtualizacao = controleEncaminhamentoReserva.registrar(
+                    message.from,
+                    reservaAtualizada.dadosReserva
+                );
+
+                if (decisaoAtualizacao.tipo === 'atualizacao') {
+                    const blocoContato = await obterBlocoContatoAviso(message);
+
+                    await enviar(
+                        client,
+                        grupoReservas,
+`✏️ ATUALIZAÇÃO DE SOLICITAÇÃO DE RESERVA VIA ANA
+
+⚠️ Esta atualização substitui os dados enviados anteriormente.
+
+${blocoContato}
+
+━━━━━━━━━━━━━━━
+
+${reservaAtualizada.dadosReserva}`
+                    );
+                }
+
+                respostaCorrecaoData = criarRespostaSeguraReserva(
+                    reservaAtualizada.dadosReserva,
+                    decisaoAtualizacao.tipo
+                );
+            } else {
+                respostaCorrecaoData = criarRespostaCorrecaoDataRelativa(
+                    contextoReservaAtualizado
+                );
+            }
+
+            if (pararDigitando) {
+                await pararDigitando();
+                pararDigitando = null;
+            }
+
+            registrarInteracaoAna(
+                message.from,
+                message.body,
+                respostaCorrecaoData
+            );
+            await registrarConversaLimpa(message, 'ANA', respostaCorrecaoData);
+            await enviar(client, message.from, respostaCorrecaoData);
+            return;
         }
 
         const inicioPedidoDelivery = deveSolicitarDadosIniciaisDelivery(

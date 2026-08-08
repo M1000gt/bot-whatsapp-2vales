@@ -1,5 +1,17 @@
 const { extrairCamposReserva } = require('./acoesAna');
-const { resolverDataMencionada } = require('./contextoDataBrasil');
+const {
+    obterProximaOcorrenciaDiaSemana,
+    resolverDataMencionada
+} = require('./contextoDataBrasil');
+const {
+    detectarComandoDataRelativa
+} = require('./intencaoDataReserva');
+
+const ORIGENS_DIA_SEMANA = new Set([
+    'dia-semana',
+    'proximo-dia-semana',
+    'outro-dia-semana'
+]);
 
 function normalizarTexto(texto = '') {
     return String(texto || '')
@@ -71,6 +83,23 @@ function detectarDataReserva(texto = '', dataBase = new Date()) {
     };
 }
 
+function resultadoEhDiaSemana(resultado) {
+    return Boolean(resultado && ORIGENS_DIA_SEMANA.has(resultado.origem));
+}
+
+function criarDataResolvidaRelativa(ocorrencia, modo) {
+    if (!ocorrencia) return null;
+
+    return {
+        encontrada: true,
+        valida: true,
+        passada: false,
+        origem: `data-relativa-${modo}`,
+        ...ocorrencia,
+        dataFormatada: `${ocorrencia.data} (${ocorrencia.diaSemana})`
+    };
+}
+
 function interpretarPetDoBloco(valor = '') {
     const pet = normalizarTexto(valor);
 
@@ -78,6 +107,38 @@ function interpretarPetDoBloco(valor = '') {
     if (/^(?:nao|n|sem pet|sem animal)$/.test(pet)) return false;
 
     return null;
+}
+
+function mensagemPareceReservaComDadosSuficientes(texto = '') {
+    const mensagem = normalizarTexto(texto);
+    const possuiHorario = mensagemTemHorario(mensagem);
+    const possuiQuantidade = /\b\d{1,3}\s*(?:pessoas?|pax)\b/.test(mensagem);
+    const possuiAmbiente = /\b(?:intern[oa]|extern[oa]|sala vip|sala reservada)\b/.test(mensagem);
+
+    return possuiHorario && possuiQuantidade && possuiAmbiente;
+}
+
+function mensagemTemHorario(texto = '') {
+    return /\b(?:[01]?\d|2[0-3])(?:\s*:\s*[0-5]\d|\s*h(?:rs?|oras?)?|\s+horas?)\b/.test(
+        normalizarTexto(texto)
+    );
+}
+
+function mensagemIniciaFluxoReserva(texto = '') {
+    const mensagem = normalizarTexto(texto);
+
+    if (/\b(?:reserv(?:a|ar|as|ado|ada|acao)|mesa)\b/.test(mensagem)) {
+        return true;
+    }
+
+    const possuiQuantidade = /\b\d{1,3}\s*(?:pessoas?|pax)\b/.test(mensagem);
+    const possuiOutroDado = (
+        mensagemTemHorario(mensagem) ||
+        /\b(?:segunda(?:-feira)?|terca(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|sabado|domingo|hoje|amanha)\b/.test(mensagem) ||
+        /\b(?:intern[oa]|extern[oa]|sala vip|sala reservada)\b/.test(mensagem)
+    );
+
+    return possuiQuantidade && possuiOutroDado;
 }
 
 function formatarDadosReserva(campos = {}) {
@@ -134,11 +195,88 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
     function atualizar(chave, texto, agora = Date.now()) {
         const pet = detectarIntencaoPet(texto);
         const ambiente = detectarAmbiente(texto);
-        const dataResolvida = detectarDataReserva(texto, new Date(agora));
-        const dataReserva = dataResolvida?.dataFormatada || null;
         const anterior = obterContexto(chave, agora) || {};
+        const fluxoReservaAtivo = Boolean(
+            anterior.fluxoReservaAtivo || mensagemIniciaFluxoReserva(texto)
+        );
+        const dataDetectada = fluxoReservaAtivo
+            ? detectarDataReserva(texto, new Date(agora))
+            : null;
+        const referenciaAnterior = anterior.fluxoReservaAtivo
+            ? (anterior.referenciaDiaSemana || null)
+            : null;
+        const comandoDataRelativa = fluxoReservaAtivo
+            ? detectarComandoDataRelativa(texto, {
+                diaSemanaAnterior: referenciaAnterior?.diaSemana || null
+            })
+            : null;
+        let dataResolvida = dataDetectada;
+        let referenciaDiaSemana = referenciaAnterior;
+        let operacaoDataRelativa = null;
+
+        if (comandoDataRelativa) {
+            const mesmoDiaAnterior = Boolean(
+                referenciaAnterior?.diaSemana === comandoDataRelativa.diaSemana
+            );
+            const estritamenteFutura = mesmoDiaAnterior
+                ? Boolean(referenciaAnterior.estritamenteFutura)
+                : dataDetectada?.origem === 'proximo-dia-semana';
+            const ocorrenciaAnterior = mesmoDiaAnterior
+                ? referenciaAnterior.ocorrencia
+                : null;
+            const ocorrenciaAlvo = comandoDataRelativa.tipo === 'avancar-ocorrencia'
+                ? ((ocorrenciaAnterior || 1) + 1)
+                : comandoDataRelativa.ocorrenciaAlvo;
+            const ocorrencia = obterProximaOcorrenciaDiaSemana(
+                comandoDataRelativa.diaSemana,
+                new Date(agora),
+                {
+                    estritamenteFutura,
+                    pularOcorrencias: Math.max(0, ocorrenciaAlvo - 1)
+                }
+            );
+
+            dataResolvida = criarDataResolvidaRelativa(
+                ocorrencia,
+                comandoDataRelativa.modo
+            );
+            referenciaDiaSemana = {
+                diaSemana: comandoDataRelativa.diaSemana,
+                estritamenteFutura,
+                ocorrencia: ocorrenciaAlvo
+            };
+            operacaoDataRelativa = {
+                ...comandoDataRelativa,
+                ocorrenciaAnterior,
+                ocorrenciaAlvo,
+                dataAnteriorResolvida: anterior.dataResolvida || null,
+                dataResolvida
+            };
+        } else if (resultadoEhDiaSemana(dataDetectada)) {
+            referenciaDiaSemana = {
+                diaSemana: dataDetectada.diaSemana,
+                estritamenteFutura: dataDetectada.origem === 'proximo-dia-semana',
+                ocorrencia: dataDetectada.origem === 'outro-dia-semana' ? 2 : 1
+            };
+        } else if (dataDetectada) {
+            referenciaDiaSemana = null;
+        }
+
+        const dataReserva = dataResolvida?.dataFormatada || null;
+        const dataAnteriorResolvida = anterior.dataResolvida || null;
+        const correcaoDataRelativa = Boolean(
+            dataAnteriorResolvida &&
+            operacaoDataRelativa &&
+            dataAnteriorResolvida.data !== dataResolvida.data
+        );
+        const reafirmacaoDataRelativa = Boolean(
+            dataAnteriorResolvida &&
+            operacaoDataRelativa &&
+            dataAnteriorResolvida.data === dataResolvida.data
+        );
         const contexto = {
             ...anterior,
+            fluxoReservaAtivo,
             atualizadoEm: agora
         };
 
@@ -148,6 +286,11 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
             contexto.dataResolvida = dataResolvida;
             contexto.dataReserva = dataReserva;
         }
+        if (referenciaDiaSemana) {
+            contexto.referenciaDiaSemana = referenciaDiaSemana;
+        } else if (dataDetectada) {
+            delete contexto.referenciaDiaSemana;
+        }
 
         contextos.set(chave, contexto);
 
@@ -156,8 +299,25 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
             ambiente,
             dataReserva,
             dataResolvida,
+            dataAnteriorResolvida,
+            operacaoDataRelativa,
+            correcaoDataRelativa,
+            reafirmacaoDataRelativa,
             possuiCorrecaoExplicita: pet !== null || Boolean(ambiente) || Boolean(dataResolvida)
         };
+    }
+
+    function limparData(chave, agora = Date.now()) {
+        const contexto = obterContexto(chave, agora);
+
+        if (!contexto) return false;
+
+        delete contexto.dataResolvida;
+        delete contexto.dataReserva;
+        delete contexto.referenciaDiaSemana;
+        contexto.atualizadoEm = agora;
+        contextos.set(chave, contexto);
+        return true;
     }
 
     function reconciliar(chave, blocoReserva, agora = Date.now()) {
@@ -227,8 +387,38 @@ function criarContextoReservaCliente({ expiracaoMs = 60 * 60 * 1000 } = {}) {
     return {
         atualizar,
         corrigirDataNaResposta,
+        limparData,
         reconciliar
     };
+}
+
+function criarRespostaCorrecaoDataRelativa({
+    dataResolvida,
+    dataAnteriorResolvida,
+    operacaoDataRelativa
+} = {}) {
+    if (!dataResolvida?.data || !dataResolvida?.diaSemana) {
+        return 'Entendi que o senhor deseja outra data, mas não consegui validá-la com segurança. Poderia informá-la no formato dia/mês/ano?';
+    }
+
+    const ocorrenciaAlvo = operacaoDataRelativa?.ocorrenciaAlvo || null;
+    const horario = dataResolvida.horario && dataResolvida.horario !== 'FECHADO'
+        ? ` O horário de funcionamento nesse dia é ${dataResolvida.horario}.`
+        : '';
+
+    if (dataAnteriorResolvida?.data === dataResolvida.data) {
+        return `Certo. A data continua sendo ${dataResolvida.data} (${dataResolvida.diaSemana}). Vou manter essa data na solicitação.${horario}`;
+    }
+
+    if (!dataAnteriorResolvida?.data) {
+        const explicacao = ocorrenciaAlvo && ocorrenciaAlvo > 1
+            ? `, a ${ocorrenciaAlvo}ª ocorrência desse dia da semana a partir de hoje`
+            : '';
+
+        return `Entendi. Para a reserva, vou considerar ${dataResolvida.data} (${dataResolvida.diaSemana})${explicacao}.${horario} Agora me informe, por favor, nome, horário desejado, quantidade de pessoas, ambiente e se haverá pet.`;
+    }
+
+    return `Entendi. Então a solicitação não será para ${dataAnteriorResolvida.data}, e sim para ${dataResolvida.data} (${dataResolvida.diaSemana}).${horario} Vou considerar essa nova data nas próximas mensagens.`;
 }
 
 function criarRespostaDataReservaInvalida(validacaoData = {}) {
@@ -255,12 +445,15 @@ function criarRespostaDataReservaInvalida(validacaoData = {}) {
 
 module.exports = {
     criarContextoReservaCliente,
+    criarRespostaCorrecaoDataRelativa,
     criarRespostaDataReservaInvalida,
     detectarAmbiente,
     detectarDataReserva,
     detectarDataPorDiaSemana,
     detectarIntencaoPet,
     formatarDadosReserva,
+    mensagemPareceReservaComDadosSuficientes,
+    mensagemIniciaFluxoReserva,
     normalizarTexto,
     validarDataResolvidaParaReserva
 };

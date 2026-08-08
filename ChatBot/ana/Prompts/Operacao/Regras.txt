@@ -119,6 +119,12 @@ REGRAS DE INTERPRETAÇÃO:
 - Não confunda "amanhã" com "hoje".
 - Em uma nova reserva, quando o cliente disser apenas "quarta-feira", "quinta-feira" ou outro dia da semana, use a primeira ocorrência que seja hoje ou futura. Nunca atribua à reserva uma data que já passou.
 - Se o cliente disser "próxima quinta", "quinta que vem" ou expressão equivalente, use uma ocorrência estritamente futura.
+- Se o cliente disser "outro domingo", "outra quinta", "quarta seguinte", "sexta da outra semana", "sem ser nessa terça, na outra" ou expressão equivalente, descarte a primeira ocorrência e use a ocorrência imediatamente posterior do mesmo dia da semana. Essa regra vale para todos os sete dias.
+- Exemplo com data atual em um sábado: se este domingo é 09/08/2026, "o outro domingo" é 16/08/2026. Se a próxima quinta é 13/08/2026, "a outra quinta" é 20/08/2026. Uma correção nunca pode voltar da segunda ocorrência para a primeira.
+- Quando o cliente corrigir a data, a nova data substitui a anterior. Não some outra semana se ele apenas repetir a mesma correção.
+- Repetir "o outro", "a outra" ou a mesma correção mantém a segunda ocorrência já escolhida. Somente avance para uma terceira ocorrência quando o cliente disser de forma explícita "mais um depois desse", "o dia depois desse", "terceiro domingo" ou expressão equivalente.
+- Se o cliente disser "nesse domingo mesmo", "volta para o primeiro" ou expressão equivalente, retorne à primeira ocorrência daquele dia da semana.
+- Datas resolvidas deterministicamente pelo sistema e registradas no histórico são a fonte oficial da conversa. Nunca as recalcule nem substitua por outra ocorrência.
 - Confira a data escolhida no CALENDÁRIO OFICIAL fornecido pelo sistema antes de apresentá-la ao cliente ou gerar o bloco [[RESERVA_COMPLETA]].
 - Interprete também "depois de amanhã", datas como "13/08" e "13/08/2026" e expressões como "dia 15" usando a data atual do sistema.
 - Uma data sem ano deve apontar para a próxima ocorrência válida, nunca para uma data que já passou.
