@@ -23,6 +23,9 @@ const {
     criarRespostaBloqueioDeliveryBoaLembranca
 } = require('../core/utils/boaLembranca');
 const {
+    criarRespostaPrecoEspecialidadesInverno
+} = require('../core/utils/especialidadesInverno');
+const {
     consolidarDadosPedidoDelivery,
     criarRespostaInicioPedidoDelivery,
     criarRespostaRecebimentoPedidoDelivery,
@@ -679,6 +682,31 @@ async function processarMensagemRecebida(message) {
         if (pareceMensagemAdministrativa(msg)) {
             await registrarConversaLimpa(message, 'ADMIN/FORNECEDOR BLOQUEADO', msg);
             await notificarAdministrativo(message, msg);
+            return;
+        }
+
+        const respostaEspecialidadeInverno =
+            criarRespostaPrecoEspecialidadesInverno(message.body);
+
+        if (respostaEspecialidadeInverno) {
+            pararDigitando = await iniciarDigitando(message);
+
+            if (pararDigitando) {
+                await pararDigitando();
+                pararDigitando = null;
+            }
+
+            registrarInteracaoAna(
+                message.from,
+                message.body,
+                respostaEspecialidadeInverno
+            );
+            await registrarConversaLimpa(
+                message,
+                'ANA',
+                respostaEspecialidadeInverno
+            );
+            await enviar(client, message.from, respostaEspecialidadeInverno);
             return;
         }
 
